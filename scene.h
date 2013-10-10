@@ -1,5 +1,5 @@
-#ifndef RAYTRACER
-#define RAYTRACER
+#ifndef RAYTRACER_H
+#define RAYTRACER_H
 
 #include <vector>
 #include <string>
