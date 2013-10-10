@@ -6,6 +6,11 @@ Camera::Camera():
   upDir(3, 0.0f)
 {}
 
+class Ray;
+
+Camera::Ray():
+	Ray() : pos(3, 0.0f), dir(3, 0.0f) {}
+
 /**
  * PARAM *sample and PARAM *ray
  * Returns a Ray going from Camera location towards the sample,
