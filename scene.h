@@ -15,6 +15,8 @@ class Scene{
  public:
   Camera camera;
   int width, height;
+  int maxDepth;
+  std::string outputFile;
   Scene();
 }
 

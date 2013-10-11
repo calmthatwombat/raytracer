@@ -6,16 +6,11 @@ Camera::Camera():
   upDir(3, 0.0f)
 {}
 
-class Ray;
-
-Camera::Ray():
-	Ray() : pos(3, 0.0f), dir(3, 0.0f) {}
-
 /**
  * PARAM *sample and PARAM *ray
  * Returns a Ray going from Camera location towards the sample,
  * probably calculated using fov */
-Ray Camera::generateRay(Sample *sample, Ray *ray) {
-  //FILLLLLTHIS LATER
+Ray Camera::generateRay(Sample *sample) {
+  
   //from class def: Create a ray starting from the camera that passes through the corresponding pixel (sample.x, sample.y) on the image plane
 }
