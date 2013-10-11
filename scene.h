@@ -1,5 +1,5 @@
-#ifndef RAYTRACER_H
-#define RAYTRACER_H
+#ifndef SCENE_H
+#define SCENE_H
 
 #include <vector>
 #include <string>
@@ -7,20 +7,24 @@
 #include <fstream>
 #include <stack>
 
-#endif
+/** Forward Declarations */
+class Camera;
 
+/** Scence class, contains basically everything */
 class Scene{
-	public:
-		//blah
-
-
+ public:
+  Camera camera;
+  int width, height;
+  Scene();
 }
 
-//represents the ray ray(t) = pos + t*dir, where t_min <= t <= t_max
+/** Represents the ray RAY(t) = POS + t*DIR, where tMin <= t <= tMax */
 class Ray{
-	public:
-	vector<float> pos;
-	vector<float> dir;
-	float t_min;
-	float t_max;
+ public:
+  vector<float> pos;
+  vector<float> dir;
+  float tMin;
+  float tMax;
 }
+
+#endif
