@@ -1,20 +1,24 @@
 #ifndef SAMPLER_H
 #define SAMPLER_H
 
+/** Forward Declarations */
 
-class Sampler{
+/** Class Declarations */
+class Sampler;
+class Sample;
+
+
+class Sampler {
   /*decide what to put here...*/
 
 }
 
-
-/** Represents a Sample. **/
-class Sample{
+/**
+ * Represents a Sample.
+ * x,y,z are UPPER LEFT corner */
+class Sample {
  public:
-  float x;
-  float y;
+  float i, j, x, y, z;
 }
-
-
 
 #endif

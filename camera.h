@@ -1,20 +1,31 @@
 #ifndef CAMERA_H
 #define CAMERA_H
 
-#include 
+#include
 
-class Camera;
+/** Forward Declarations */
 class Sample;
-class Ray;
 
-class Camera {
+/** Class Declarations */
+class Ray;
+class Camera;
+
+/** Represents the ray RAY(t) = POS + t*DIR, where tMin <= t <= tMax */
+Ray {
+ public:
+  vector<float> pos;
+  vector<float> dir;
+  float tMin;
+  float tMax;
+}
+
+Camera {
  public:
   vector<float> lookFrom;
   vector<float> lookAt;
   vector<float> upDir;
-  float fovVert;
-  float fovHori;
-  Ray generateRay(Sample *sample, Ray *ray);
+  
+  Ray generateRay(, Ray *ray);
 }
 
 #endif

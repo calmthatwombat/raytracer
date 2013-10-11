@@ -10,7 +10,7 @@
 /** Forward Declarations */
 class Camera;
 
-/** Scence class, contains basically everything */
+/** Scene class, contains basically everything */
 class Scene{
  public:
   Camera camera;
@@ -18,15 +18,6 @@ class Scene{
   int maxDepth;
   std::string outputFile;
   Scene();
-}
-
-/** Represents the ray RAY(t) = POS + t*DIR, where tMin <= t <= tMax */
-class Ray{
- public:
-  vector<float> pos;
-  vector<float> dir;
-  float tMin;
-  float tMax;
 }
 
 #endif
