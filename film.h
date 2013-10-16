@@ -1,12 +1,30 @@
 #ifndef FILM_H
+#ifndef FREEIMAGE_H
 #define FILM_H
+#define FREEIMAGE_H
 #include <iostream>
-//#include "FreeImage . h" //goes in film.cpp?
+#include "FreeImage.h"
 
-class film{
+/** Forward Declarations */
+class Scene;
+
+/** Class Declarations */
+class Film;
+
+Film{
  public:
-  //not sure if we really need any film attributes..
+  Film(int, int);
+  FIBITMAP* bitmap;
+  RGBQUAD color;
+  int width, height; // passed in by scene
+  void Film::setPixel(int x, int y);
+  void Film::outputImage(string outputFileName);
+
 }
+
+/** Objct Declarations */
+Film film;
+Scene *scene;
 
 
 #endif

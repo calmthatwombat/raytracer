@@ -14,11 +14,10 @@ class Sampler {
 }
 
 /**
- * Represents a Sample.
- * x,y,z are UPPER LEFT corner */
+ * Represents a Sample on the window */
 class Sample {
  public:
-  float i, j, x, y, z;
+  float i, j;
 }
 
 #endif

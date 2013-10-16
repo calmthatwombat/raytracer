@@ -1,7 +1,8 @@
 #ifndef CAMERA_H
 #define CAMERA_H
 
-#include
+#include <vector>
+#include <math.h>
 
 /** Forward Declarations */
 class Sample;
@@ -11,21 +12,41 @@ class Ray;
 class Camera;
 
 /** Represents the ray RAY(t) = POS + t*DIR, where tMin <= t <= tMax */
-Ray {
+class Ray {
  public:
-  vector<float> pos;
+  /* Empty constructor does nothing */
+  Ray();
+  /* Constructor initializing startPos and dir */
+  Ray(vector<float> start, vector<float> direction);
+  vector<float> startPos;
   vector<float> dir;
-  float tMin;
-  float tMax;
-}
+};
 
-Camera {
+class Camera {
  public:
+  /* Constructor taking in width, height, and fov */
+  Camera(float x, float y, float fov);
+  // Window size
+  float w, h;
+  // Orthogonal distance
+  float d;
+  // UL corner
+  vector<float> ul;
+  // DIRECTIONS for incremental sampling. NOTE: capital letter indicates POSITIVE.
+  // must be x, X, y, Y, z, Z
+  char right;
+  char down;
+  // Camera properties
   vector<float> lookFrom;
   vector<float> lookAt;
   vector<float> upDir;
-  
-  Ray generateRay(, Ray *ray);
-}
+  /* Returns a RAY generated from pointing the camera to the SAMPLE */
+  Ray generateRay(Sample &sample);
+};
+
+/** Method Declarations */
+/** Given a camera with defined upDir and d, set its UL field, RIGHT, and DOWN */
+void setULRD(Camera cam);
+
 
 #endif
