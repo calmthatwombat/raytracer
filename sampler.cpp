@@ -1,4 +1,32 @@
-/** main creates ONE sampler object (this is in scene.cpp)
+#include "sampler.h"
+
+/** Define Sampler constructor with Camera, Raytracer, and Film */
+Sampler::Sampler(Camera &_camera, RayTracer &_raytracer, Film &_film):
+  camera(_camera),
+  raytracer(_raytracer),
+  film(_film)
+{}
+
+
+
+
+/**
+
+FILES LIZZIE CHANGED: Sampler.cpp , Sampler.h, Film.cpp, Film.h, Scene.cpp (added main and loadscene)
+
+QUESTIONS:
+in camera.generateRay, sample is (x, y, z), but in our definition last night, sample was just (x, y)
+I never needed 3dpixel/incrementing to set pixel?
+should I initialize sample object inside or outside for loop?
+  follow up: am I really changing samp.x and samp.y....correctly?
+check member initialization lol?
+
+
+-----
+
+
+
+main creates ONE sampler object (this is in scene.cpp)
     sampler holds fields that tracks the i, j (basically where we are throughout the looping), and camera
     SAMPLE definition: a xy point in 2D window
     Sampler will somehow need to obtain Camera's ul. One way is to put Camera into Sampler as a field.        char right and char down are necessary too.
@@ -42,3 +70,4 @@ Now that sample will contain the color of the i,j of the window viewport.
 Sampler, which called all this Sample shit, will now send this Sample object to Film. Film stores every color and will eventually construct that .png
 
 done.
+*/

@@ -1,51 +1,30 @@
 #ifndef SCENE_H
 #define SCENE_H
 
-#include "raytracer.h"
-#include "camera.h"
-#include "film.h"
 #include "sampler.h"
+
+#include <sstream> //included this for loadscene
 
 #include <vector>
 #include <string>
 #include <iostream>
 #include <fstream>
 #include <stack>
+#include <string>
 
 /** Class Declarationss */
-class Sphere;
-class Triangle;
 
-/** Sphere class */
-class Sphere {
-  /* Sphere constructor */
-  Sphere(float x, float y, float z, float rad);
-  /* Given an incoming ray, returns NULL if no intersection, otherwise returns
-   * resultant intersection */
-  Intersection* intersect(Ray &ray);
-  // Fields
-  vector<float> center;
-  float radius;
-};
+//NOTES: RENDER METHOD SHOULD BE CALLED AT SOME POINT IN SCENE.CPP MAIN (probably after all the parsing is done)
+/* METHOD DESCRIPTION: begins for-looping through each pixel in window of size width * height.
+   This method will generate a ray that will shoot to each pixel in the window, and get the
+   RGB value to be passed to Film.*/
+/* PARAM width, height : width and height of image plane
+   PARAM depth : the depth of recursion
+   PARAM outputFileName : the output file name that film needs to create the PNG output file.
+   PARAM Sampler : needs Sampler object to get access to a Sample and the Camera */
+void render(int width, int height, int depth, std::string outputFileName, 
+	    Sampler &sampler);
 
-/** Triangle class */
-class Triangle {
- public:
-  /* Triangle constructor */
-  Triangle(vector<float> p1, vector<float> p2, vector<float> p3);
-  /* Given an incoming ray, returns NULL if no intersection, otherwise returns
-   * resultant intersection */
-  Intersection* intersect(Ray &ray);
-  // Fields
-  vector<float> v1, v2, v3;
-  // Normal (arbitrary direction, figure out appropriate one later)
-  vector<float> normal;
-};
-
-/** Method Declarations */
-/** Quadratic solver, sets x0 and x1 to to the roots of quadratic function, given
- *  a, b, and c of the quadratic formula. */
-int quadratic(const float &a, const float &b, const float &c, float &x0, float &x1);
 
 
 

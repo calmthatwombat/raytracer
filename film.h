@@ -1,31 +1,31 @@
 #ifndef FILM_H
-#ifndef FREEIMAGE_H
 #define FILM_H
-#define FREEIMAGE_H
+
+#include <stdio.h>
 #include <iostream>
-#include "FreeImage.h"
+#include <sstream>
+#include <vector>
+#include <cstring>
+#include <cstdlib>
+#include <string>
+#include "./FreeImage/FreeImage.h"
 
 /** Forward Declarations */
-class Scene;
 
 /** Class Declarations */
 class Film;
 
-Film{
+class Film {
  public:
   Film(int, int);
   FIBITMAP* bitmap;
   RGBQUAD color;
   int width, height; // passed in by scene
-  void Film::setPixel(int x, int y);
-  void Film::outputImage(string outputFileName);
+  void setPixel(int x, int y, std::vector<float> rgb);
+  void outputImage(std::string outputFileName);
 
-}
-
-/** Objct Declarations */
-Film film;
-Scene *scene;
+};
 
 
-#endif
+#endif /* FILM_H */
 

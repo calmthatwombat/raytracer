@@ -1,37 +1,29 @@
 #include "film.h"
-#include "FreeImage.h"
 
 #define BPP 24 //since we're outputting three 8 bit RGB values
 
-using namespace std;
-
-// scene s;
-// int width = s.width;
-// int height = s.height;
-//string outputFile = s.outputFile;
-
-// FIBITMAP* bitmap = FreeImage_Allocate();
-// RGBQUAD color;
-
-
-/** Film constructor receives image plane width/height from scene */
+/** Film constructor receives image plane width & height from scene */
 Film::Film(int _width, int _height) {
   width = _width;
   height = _height;
   bitmap = FreeImage_Allocate(width, height, BPP);
+  //might possibly need to set color.rgbREd, color.rgbBlue...to 0?
+  FreeImage_Initialise();
 }
 
-
 /* sets a pixel (x,y), and saves it into the corresponding position on the bitmap. 
- * @PARAM: Takes in the x coordinate of the sample, and the y coordinate of the sample.*/
-void Film::setPixel(float x, float y){
-  FreeImage_Initialise();
-  if(!bitmap)
+ * @PARAM: Takes in the x coordinate of the sample, and the y coordinate of the sample.
+   @PARAM: RGB color of the pixel to be saved in bitmap. */
+void Film::setPixel(int x, int y, std::vector<float> rgb){
+  //FreeImage_Initialise();
+  if(!bitmap) {
+    std::cout << "No bitmap!" << std::endl;
     exit(1);
+  }
 
-  color.rgbRed = 0;///////
-  color.rgbGreen = (double) x * 255.0;/////
-  color.rgbBlue = (double) y * 255.0;/////
+  color.rgbRed = (double) rgb.at(0) * 255;
+  color.rgbGreen = (double) rgb.at(1) * 255;
+  color.rgbBlue = (double) rgb.at(2) * 255;
 
   FreeImage_SetPixelColor(bitmap, x, y, &color);//passing a pointer to the color struct
 
@@ -39,9 +31,15 @@ void Film::setPixel(float x, float y){
 
 /*outputs the final image.
  * @PARAM: given the outputFileName, outputs a PNG image with that outputFileName. */
-void Film::outputImage(string outputFileName){
-  if (FreeImage_Save(FIF_PNG, bitmap, outputFileName, 0)) //outputting the file
-    cout << "Image successfully saved!!!" <<endl;
+void Film::outputImage(std::string outputFileName){
+  // convert outputFileName to char*
+  /*
+    char *output = new char[outputFileName.size() + 1];
+  output[outputFileName.size()] = 0;
+  memcpy(output, outputFileName.c_str(), outputFileName.size());*/
+  
+  if (FreeImage_Save(FIF_PNG, bitmap, outputFileName.c_str(), 0)) //outputting the file
+    std::cout << "Image successfully saved!!!" << std::endl;
 
   FreeImage_DeInitialise(); //cleanup.
 }
@@ -78,4 +76,4 @@ void Film::outputImage(string outputFileName){
 
 //   FreeImage_DeInitialise(); //cleanup.
 
-}
+//}
