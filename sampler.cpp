@@ -1,7 +1,7 @@
 #include "sampler.h"
 
 /** Define Sampler constructor with Camera, Raytracer, and Film */
-Sampler::Sampler(Camera &_camera, RayTracer &_raytracer, Film &_film):
+Sampler::Sampler(Camera *_camera, RayTracer *_raytracer, Film *_film):
   camera(_camera),
   raytracer(_raytracer),
   film(_film)

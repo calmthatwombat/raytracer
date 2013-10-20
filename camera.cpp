@@ -19,6 +19,8 @@ Camera::Camera():
   fov(0.0f),
   d(0.0f),
   ul(3, 0.0f),
+  right(3, 0.0f),
+  down(3, 0.0f),
   lookFrom(3, 0.0f),
   lookAt(3, 0.0f),
   upDir(3, 0.0f)
@@ -70,6 +72,41 @@ void normalizationizerificationator(Ray &ray) {
   ray.dir.at(2) = ray.dir.at(2)/mag;
 }
 
+/** Given 2 three POINTs, return the NORMAL vector to their plane */
+std::vector<float> crossifier(const std::vector<float> &p1, 
+			      const std::vector<float> &p2,
+			      const std::vector<float> &p3) {
+  std::vector<float> v1(3, 0.0f);
+  std::vector<float> v2(3, 0.0f);
+  std::vector<float> result(3, 0.0f);
+  // vector1
+  v1.at(0) = p2.at(0) - p1.at(0);
+  v1.at(1) = p2.at(1) - p1.at(1);
+  v1.at(2) = p2.at(2) - p1.at(2);
+  // vector2
+  v2.at(0) = p3.at(0) - p1.at(0);
+  v2.at(1) = p3.at(1) - p1.at(1);
+  v2.at(2) = p3.at(2) - p1.at(2);
+  // use overloaded method
+  return crossifier(v1, v2);
+}
+
+/** Given 2 VECTORS, return the NORMAL vector to their plane (v1 cross v2)*/
+std::vector<float> crossifier(const std::vector<float> &v1, 
+			      const std::vector<float> &v2) {
+  std::vector<float> result(3, 0.0f);  
+  result.at(0) = v1.at(1)*v2.at(2) - v1.at(2)*v2.at(1);
+  result.at(1) = v1.at(0)*v2.at(2) - v1.at(2)*v2.at(0);
+  result.at(2) = v1.at(0)*v2.at(1) - v1.at(1)*v2.at(0);
+  normalizationizerificationator(result);
+  return result;
+}
+
+/** Given 2 VECTORS, return v1 dot v2 */
+float dot(std::vector<float> v1, std::vector<float> v2) {
+  return v1.at(0) * v2.at(0) + v1.at(1) * v2.at(1) + v1.at(2) * v2.at(2);
+}
+
 /** Set d in a camera */
 void Camera::setD() {
   d = h / (2*tan((fov/2)*(3.14159265/180)));
@@ -77,6 +114,38 @@ void Camera::setD() {
 
 /** Given a camera with defined upDir and d, set its UL field, RIGHT, and DOWN */
 void Camera::setULRD() {
+  lookAt.at(0) = lookAt.at(0) - lookFrom.at(0);
+  lookAt.at(1) = lookAt.at(1) - lookFrom.at(1);
+  lookAt.at(2) = lookAt.at(2) - lookFrom.at(2);
+  normalizationizerificationator(lookAt);
+  
+  // Set RIGHT and DOWN
+  right = crossifier(lookAt, upDir);
+  down.at(0) = upDir.at(0);
+  down.at(1) = upDir.at(1);
+  down.at(2) = upDir.at(2);
+  normalizationizerificationator(down);
+
+  // Set UL
+  ul.at(0) = lookFrom.at(0) + 1/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    
+  /**
   std::vector<float> ULPos(3, 0.0f);
   // up: +y
   if (upDir.at(1) == 1) {
@@ -363,6 +432,7 @@ void Camera::setULRD() {
   } else {
     std::cout << "ERROR: right was never properly set." << std::endl;
   }
+  */
 }
 
 

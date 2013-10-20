@@ -1,5 +1,5 @@
 CC = g++
-CFLAGS = -Wall -I./FreeImage/
+CFLAGS = -Wall -O2 -I./FreeImage/
 LDFLAGS = -lm -lfreeimage -L./FreeImage/libfreeimage.a
 
 default: scene

@@ -8,8 +8,6 @@
 #include <sstream>
 
 
-/** Forward Declarations */
-
 /** Class Declarations */
 class Ray;
 class Camera;
@@ -40,8 +38,10 @@ class Camera {
   std::vector<float> ul;
   // DIRECTIONS for incremental sampling. NOTE: capital letter indicates POSITIVE.
   // must be x, X, y, Y, z, Z
-  char right;
-  char down;
+  std::vector<float> right;
+  std::vector<float> down;
+  //char right;
+  //char down;
   // Camera properties
   std::vector<float> lookFrom;
   std::vector<float> lookAt;
@@ -77,6 +77,18 @@ void normalizationizerificationator(Ray &ray);
 
 /** Method that normalizes a vector */
 void normalizationizerificationator(std::vector<float> &vec);
+
+
+/** Given 2 POINTs, return the NORMAL vector to their plane */
+std::vector<float> crossifier(const std::vector<float> &p1, 
+			      const std::vector<float> &p2,
+			      const std::vector<float> &p3);
+/** Given 2 VECTORS, return the NORMAL vector to their plane */
+std::vector<float> crossifier(const std::vector<float> &v1,
+			      const std::vector<float> &v2);
+
+/** Given 2 VECTORS, return v1 dot v2 */
+float dot(std::vector<float> v1, std::vector<float> v2);
 
 
 #endif

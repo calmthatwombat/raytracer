@@ -11,6 +11,7 @@
 #include <fstream>
 #include <stack>
 #include <string>
+#include <stdexcept>
 
 /** Class Declarationss */
 
