@@ -1,0 +1,11 @@
+notes-01
+
+command line input: (from top of directory) 
+./as2 inputs/input-01.test
+
+time to run:
+.96 seconds
+
+
+features:
+Demonstrates simple shading of a square, with the camera located at an angle.

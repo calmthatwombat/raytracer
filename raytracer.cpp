@@ -96,9 +96,9 @@ std::vector<float> specularify(std::vector<float> scolor, std::vector<float> ico
   std::vector<float> reflectRay(3, 0.0f);
   reflectRay = getRefVector(lightDir, surfaceNorm); // getRefRay already normalizes.
 
-  float scalar = std::max(-reflectRay.at(0)*dirToViewer.at(0) + 
-			  -reflectRay.at(1)*dirToViewer.at(1) + 
-			  -reflectRay.at(2)*dirToViewer.at(2),
+  float scalar = std::max(reflectRay.at(0)*dirToViewer.at(0) + 
+			  reflectRay.at(1)*dirToViewer.at(1) + 
+			  reflectRay.at(2)*dirToViewer.at(2),
 			  0.0f);
   scalar = pow(scalar, pCoeff);
 
@@ -139,6 +139,7 @@ std::vector<float> shAverager(std::vector<float> rgbs[], int num) {
 
 /** Trace given RAY recursively to return the resultant RGB color */
 std::vector<float> RayTracer::trace(Ray &outRay, int depth) {
+  // prevent self intersecting
   outRay.startPos.at(0) += outRay.dir.at(0) * 0.001;
   outRay.startPos.at(1) += outRay.dir.at(1) * 0.001;
   outRay.startPos.at(2) += outRay.dir.at(2) * 0.001;
@@ -232,14 +233,19 @@ std::vector<float> RayTracer::trace(Ray &outRay, int depth) {
       dlresult[0] = ambientify(firstHit.sh->brdf.ka, DLs->at(i)->rgb);
       dlresult[1] = diffusify(firstHit.sh->brdf.kd, DLs->at(i)->rgb,
 			      DLs->at(i)->lightDir, firstHit.normal);
-      dlresult[2] = specularify(firstHit.sh->brdf.ks, DLs->at(i)->rgb, 
-				DLs->at(i)->lightDir, firstHit.normal,
-				getNegative(outRay.dir), firstHit.sh->brdf.s);
+      if (firstHit.sh->brdf.s) {
+	dlresult[2] = specularify(firstHit.sh->brdf.ks, DLs->at(i)->rgb, 
+				  DLs->at(i)->lightDir, firstHit.normal,
+				  getNegative(outRay.dir), firstHit.sh->brdf.s);
+      } else {
+	dlresult[2] = black;
+      }
       rgbs[i] = shAverager(dlresult, 3);
     } else {
       rgbs[i] = black;
     }
   }
+
   // Loop through PLs
   for (unsigned int i = 0; i < PLs->size(); i++) {
     Intersection block;
@@ -247,8 +253,9 @@ std::vector<float> RayTracer::trace(Ray &outRay, int depth) {
     float exactT = 0.0f;
     Ray cRay(firstHit.pos, vectorizer(firstHit.pos, PLs->at(i)->pos));
     // Check if collision is on correct side
-    if (dot(cRay.dir, firstHit.normal) <= 0.0f)
+    if (dot(cRay.dir, firstHit.normal) <= 0.0f) {
       blocked = 1;
+    }
     // Make a ray that goes from PL to p, which is backwards
     Ray backwardscRay(PLs->at(i)->pos, vectorizer(PLs->at(i)->pos, firstHit.pos));
     std::vector<Intersection> intersections1;
@@ -286,12 +293,10 @@ std::vector<float> RayTracer::trace(Ray &outRay, int depth) {
     for (unsigned int j = 0; !blocked && j < intersections1.size(); j++) {
       // Find closest intersection (overlap handling is needed for PLs)
       // Handle overlaps by allowing exact to take priority
-      if (intersections1[i].isExists) {
-	if (intersections1[i].t < exactT) {
-	  rgbs[DLs->size() + i] = black;
-	  blocked = 1;
-	  break;
-	}
+      if (intersections1[j].t < exactT) {
+	rgbs[DLs->size() + i] = black;
+	blocked = 1;
+	break;
       }
     }
     // Collision handling
@@ -301,11 +306,26 @@ std::vector<float> RayTracer::trace(Ray &outRay, int depth) {
       plresult[1] = diffusify(firstHit.sh->brdf.kd, PLs->at(i)->rgb,
 			      vectorizer(PLs->at(i)->pos, firstHit.pos), 
 			      firstHit.normal);
-      plresult[2] = specularify(firstHit.sh->brdf.ks, PLs->at(i)->rgb, 
-				vectorizer(PLs->at(i)->pos, firstHit.pos), 
-				firstHit.normal,
-				getNegative(outRay.dir), firstHit.sh->brdf.s);
+      if (firstHit.sh->brdf.s) {
+	plresult[2] = specularify(firstHit.sh->brdf.ks, PLs->at(i)->rgb, 
+				  vectorizer(PLs->at(i)->pos, firstHit.pos), 
+				  firstHit.normal,
+				  getNegative(outRay.dir), firstHit.sh->brdf.s);
+      } else {
+	plresult[2] = black;
+      }
+      // Attenuation
+      float dist = sqrt(pow(firstHit.pos.at(0)-PLs->at(i)->pos.at(0), 2) + 
+			pow(firstHit.pos.at(1)-PLs->at(i)->pos.at(1), 2) + 
+			pow(firstHit.pos.at(2)-PLs->at(i)->pos.at(2), 2));
+      float attFac = (PLs->at(i)->att1 + dist*PLs->at(i)->att2 +
+		      dist*dist*PLs->at(i)->att3);
       rgbs[DLs->size() + i] = shAverager(plresult, 3);
+      rgbs[DLs->size() + i].at(0) = rgbs[DLs->size() + i].at(0) / attFac;
+      rgbs[DLs->size() + i].at(1) = rgbs[DLs->size() + i].at(1) / attFac;
+      rgbs[DLs->size() + i].at(2) = rgbs[DLs->size() + i].at(2) / attFac;
+    } else {
+      rgbs[DLs->size() + i] = black;
     }
   }
   std::vector<float> ke(3, 0.0f);
@@ -419,7 +439,6 @@ int quadratic(const float &a, const float &b, const float &c, float &x0, float &
  *  resultant intersection */
 Intersection Sphere::intersect(Ray &ray, RayTracer &rt) {
 
-
   //////stuff needed for transformation:
   
   vec3 rayStartPos = convertToVec3(ray.startPos);
@@ -461,7 +480,6 @@ Intersection Sphere::intersect(Ray &ray, RayTracer &rt) {
   }
 
 
-  inters.t = t0;
   inters.sh = rt.shapes->at(this->num);
   /////////// more stuff for transformation:
   vec3 transfRayStartPos = convertToVec3(transRay.startPos);
@@ -471,9 +489,11 @@ Intersection Sphere::intersect(Ray &ray, RayTracer &rt) {
 
   //setting inters.pos to the intersPos we found above, after the transformation:
   inters.pos = convertToVectorFloat(intersPos);
+  inters.t = sqrt(pow(inters.pos[0]-ray.startPos[0], 2) + 
+		  pow(inters.pos[1]-ray.startPos[1], 2) + 
+		  pow(inters.pos[2]-ray.startPos[2], 2));
 
   //Note: to calculate normal of an ellipsoid, transform normal by m.inverse.transpose (Shirley)
-  //vec3 vec3Center = convertToVec3(center); //deleted
   vec3 normal = vec3(inverse * intersPos) - convertToVec3(center);
   // note, this is an algebra3 constructor: vec3(const vec4& v, int dropAxis); <- casts vec4 to vec3
   normal = vec3(inverse.transpose() * vec4(normal, 0), 3);
@@ -485,54 +505,6 @@ Intersection Sphere::intersect(Ray &ray, RayTracer &rt) {
   // By this point, intersection is then valid.
   return inters;
 
-  //originally:
-  // inters.pos.at(0) = transRay.startPos.at(0) + t0*transRay.dir.at(0);
-  // inters.pos.at(1) = transRay.startPos.at(1) + t0*transRay.dir.at(1);
-  // inters.pos.at(2) = transRay.startPos.at(2) + t0*transRay.dir.at(2);
-  // inters.normal.at(0) = inters.pos.at(0) - center.at(0);
-  // inters.normal.at(1) = inters.pos.at(1) - center.at(1);
-  // inters.normal.at(2) = inters.pos.at(2) - center.at(2);
-  // normalizationizerificationator(inters.normal);
-  // return inters;
-
-
-
-  //kevin's original code:
-  // // Roots of intersection
-  // float t0 = 0.0f;
-  // float t1 = 0.0f;
-  // // emc: e minus c (ray's startPos - sphere center)
-  // std::vector<float> emc(3, 0.0f);
-  // emc.at(0) = ray.startPos.at(0) - center.at(0);
-  // emc.at(1) = ray.startPos.at(1) - center.at(1);
-  // emc.at(2) = ray.startPos.at(2) - center.at(2);
-  // // a: d dot d     (ray's dir dotproduct itself) EQUALS 1 for unit d
-  // float a = (ray.dir.at(0)*ray.dir.at(0) + ray.dir.at(1)*ray.dir.at(1) + 
-  //      ray.dir.at(2)*ray.dir.at(2));
-  // // b: 2* (d dot ((e-c)dot(e-c)))    (2 times (d dot (emc dotproduct itself)))
-  // float b = 2 * (ray.dir.at(0)*emc.at(0) + ray.dir.at(1)*emc.at(1) +
-  //    ray.dir.at(2)*emc.at(2));
-  // // c: emc dot emc - r^2        (emc dot emc - sphere's radius^2)
-  // float c = (emc.at(0)*emc.at(0) + emc.at(1)*emc.at(1) + emc.at(2)*emc.at(2) -
-  //      radius*radius);
-  // // Initialize intersection, currently isExists == 1
-  // Intersection inters;
-  // if (!quadratic(a, b, c, t0, t1)) {
-  //   // SET isExists = 0
-  //   inters.isExists = 0;
-  //   return inters;
-  // }
-  // inters.t = t0;
-  // inters.sh = rt.shapes->at(this->num);
-  // inters.pos.at(0) = ray.startPos.at(0) + t0*ray.dir.at(0);
-  // inters.pos.at(1) = ray.startPos.at(1) + t0*ray.dir.at(1);
-  // inters.pos.at(2) = ray.startPos.at(2) + t0*ray.dir.at(2);
-  // inters.normal.at(0) = inters.pos.at(0) - center.at(0);
-  // inters.normal.at(1) = inters.pos.at(1) - center.at(1);
-  // inters.normal.at(2) = inters.pos.at(2) - center.at(2);
-  // normalizationizerificationator(inters.normal);
-  // // By this point, intersection is then valid.
-  // return inters;
 }
 
 vec3 convertToVec3(std::vector<float> v) {
@@ -562,12 +534,13 @@ Triangle::Triangle(std::vector<float> *p0, std::vector<float> *p1,
 /** Given an incoming ray, returns NULL if no intersection, otherwise returns
  *  resultant intersection */
 Intersection Triangle::intersect(Ray &ray, RayTracer &rt) {
-
   // Initialize intersection, currently isExists == 1
   Intersection inters;
 
   //getting the dotproduct of: the triangle normal dot ray.dir
   float nDotRayDir = dot(normal, ray.dir);
+  // Check normal direction
+  
   //if the ray is parallel to triangle plane, there is no intersection
   if(nDotRayDir == 0) {
     inters.isExists = 0;
@@ -580,12 +553,12 @@ Intersection Triangle::intersect(Ray &ray, RayTracer &rt) {
   // from the O(0,0,0) to the plane. We can find D by using any of the 3 triangle 
   // vertices, but I will use v1.
   // To find D, I'm doing: normal dot v0
-  float d = dot(normal, *v0);
+  float d = dot(normal, *v1);
 
   // finding the value of t in P = O + tD, where P is the intersection point
   //of the ray and the plane
   //t = -(dot(normal, ray.startPos) + D) / dot(normal, ray.dir)
-  float t = -(dot(normal, ray.startPos) + d) / nDotRayDir;
+  float t = -(dot(normal, ray.startPos) - d) / nDotRayDir;
 
   //checking if the triangle is already on or behind the ray:
   if (t <= 0.0f) {
@@ -675,7 +648,24 @@ Intersection Triangle::intersect(Ray &ray, RayTracer &rt) {
     return inters;
   }
 
-  //The last check: going to check if the intersection.pos isInBounds:
+
+  /**
+  if (this->num == 10) {
+    printf("n2: %f\n", normal.at(2));
+    printf("p2: %f\n", p.at(2));
+    printf("nv: %f\n", dot(normal, ray.startPos));
+    printf("nr: %f\n", nDotRayDir);
+    printf("d : %f\n", d);
+    printf("t : %f\n\n", t);
+    
+    
+    d = dot(normal, *v1);
+    t = -(dot(normal, ray.startPos) + d) / nDotRayDir;
+    nDotRayDir = dot(normal, ray.dir);
+  }
+  */
+
+  // Set pos
   inters.pos.at(0) = p.at(0);
   inters.pos.at(1) = p.at(1);
   inters.pos.at(2) = p.at(2);
@@ -684,7 +674,7 @@ Intersection Triangle::intersect(Ray &ray, RayTracer &rt) {
   
   inters.sh = rt.shapes->at(this->num);
   inters.t = t;
-  inters.normal.at(0) = normal.at(1);
+  inters.normal.at(0) = normal.at(0);
   inters.normal.at(1) = normal.at(1);
   inters.normal.at(2) = normal.at(2);
   normalizationizerificationator(inters.normal);

@@ -7,6 +7,7 @@
 #include <vector>
 #include <math.h>
 #include <algorithm>
+#include <stdexcept>
 
 /** Class Declarations */
 class RayTracer;

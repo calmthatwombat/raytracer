@@ -21,6 +21,18 @@ void render(int width, int height, int depth, std::string outputFileName,
       //getting the rgb value returned by calling raytracer.trace
       samp.rgb = sampler->raytracer->trace(outRay, 5);
 
+      // Progress
+      if (i + j * width == 0)
+	printf("...0%%  done...\n");
+      if (i + j * width == (height*width)/5)
+	printf("...20%% done...\n");
+      if (i + j * width == (2*height*width)/5)
+	printf("...40%% done...\n");
+      if (i + j * width == (3*height*width)/5)
+	printf("...60%% done...\n");
+      if (i + j * width == (4*height*width)/5)
+	printf("...80%% done...\n");
+      
       //Passing the rgb value to film (this rgb value will to be saved in the Film.bitmap)
       sampler->film->setPixel(i, height - 1 - j, samp.rgb);
 
@@ -245,23 +257,26 @@ int main(int argc, char *argv[]) {
         vec3 v3_3D = vec3(transforms.top() * v3_4D);
 
         //converting each vec3 into a vector<float>:
-        v1->at(0) = v1_3D[0];
-        v1->at(1) = v1_3D[1];
-        v1->at(2) = v1_3D[2];
+	std::vector<float> *vv1 = new std::vector<float>(3, 0.0f);
+	std::vector<float> *vv2 = new std::vector<float>(3, 0.0f);
+	std::vector<float> *vv3 = new std::vector<float>(3, 0.0f);
+	
+        vv1->at(0) = v1_3D[0];
+        vv1->at(1) = v1_3D[1];
+        vv1->at(2) = v1_3D[2];
 
-        v2->at(0) = v2_3D[0];
-        v2->at(1) = v2_3D[1];
-        v2->at(2) = v2_3D[2];
+        vv2->at(0) = v2_3D[0];
+        vv2->at(1) = v2_3D[1];
+        vv2->at(2) = v2_3D[2];
 
-        v3->at(0) = v3_3D[0];
-        v3->at(1) = v3_3D[1];
-        v3->at(2) = v3_3D[2];
+        vv3->at(0) = v3_3D[0];
+        vv3->at(1) = v3_3D[1];
+        vv3->at(2) = v3_3D[2];
 
+	
         
-        //triangles0.push_back(new Triangle(v1, v2, v3, brdf));//this is what I had before
-
         //Finally, pushing the transformed vertices into the triangles container:
-      	Triangle t(v1, v2, v3, brdf, shapeNum++);
+      	Triangle t(vv1, vv2, vv3, brdf, shapeNum++);
       	triangles1.push_back(t);
       	shape.brdf = brdf;
       	shapes1.push_back(shape);

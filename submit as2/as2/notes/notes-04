@@ -1,0 +1,11 @@
+notes-04
+
+command line input: (from top of directory) 
+./as2 inputs/input-04.test
+
+time to run:
+8.63s
+
+
+features:
+Demonstrates transformations, as well as ray-surface intersections and a simple shading of spheres.

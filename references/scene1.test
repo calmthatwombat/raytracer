@@ -3,7 +3,7 @@
 
 size 640 480 
 
-output atest1-cam1.png
+output atest1.png
 
 # Now specify the camera.  This is what you should implement.
 # This file has 4 camera positions.  Render your scene for all 4.

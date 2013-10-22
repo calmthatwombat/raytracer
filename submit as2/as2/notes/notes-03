@@ -1,0 +1,11 @@
+notes-03
+
+command line input: (from top of directory) 
+./as2 inputs/input-03.test
+
+time to run:
+5.96 seconds
+
+
+features:
+Demonstrates ray-surface intersections and a simple shading of triangles and spheres, from a different camera angle.
