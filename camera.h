@@ -36,12 +36,9 @@ class Camera {
   float d;
   // UL corner
   std::vector<float> ul;
-  // DIRECTIONS for incremental sampling. NOTE: capital letter indicates POSITIVE.
-  // must be x, X, y, Y, z, Z
+  // DIRECTIONS for incremental sampling.
   std::vector<float> right;
   std::vector<float> down;
-  //char right;
-  //char down;
   // Camera properties
   std::vector<float> lookFrom;
   std::vector<float> lookAt;

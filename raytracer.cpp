@@ -12,32 +12,319 @@ Intersection::Intersection():
   isExists(1)
 {}
 
-/** Trace given RAY recursively to return the resultant RGB color */
-std::vector<float> RayTracer::trace(Ray &outRay, int depth) {
-  //Triangle a = *triangles.at(0);
-  std::vector<float> result(3, 0.0f);
-  //intersecting shit for testing
-  for (std::vector<Triangle *>::iterator t = triangles->begin(); 
-       t != triangles->end(); ++t) {
-    if ((*t)->intersect(outRay, *this).isExists) {
-      result.at(0) = 1.0f;
-    }
-  }
-  
+/** Finds the vector from pt1 to pt2 */
+std::vector<float> vectorizer(std::vector<float> pt1, std::vector<float> pt2) { // going from pt1 to pt2
+  std::vector<float> result (3, 0.0f);
+  result.at(0) = pt2.at(0)-pt1.at(0);
+  result.at(1) = pt2.at(1)-pt1.at(1);
+  result.at(2) = pt2.at(2)-pt1.at(2);
+  normalizationizerificationator(result);
   return result;
 }
 
 /** After finding an intersection, determine reflection ray at pos from input ray */
-Ray RayTracer::createReflectRay(Ray &incRay, Intersection inters){
-  float dot = (incRay.dir.at(0)*inters.normal.at(0) + 
-	       incRay.dir.at(1)*inters.normal.at(1) + 
-	       incRay.dir.at(2)*inters.normal.at(2));
+Ray createReflectRay(Ray &incRay, Intersection &inters){
+  float dp = dot(incRay.dir, inters.normal);
   std::vector<float> result(3, 0.0f);
-  result.at(0) = -incRay.dir.at(0) + 2*dot*inters.normal.at(0);
-  result.at(1) = -incRay.dir.at(1) + 2*dot*inters.normal.at(1);
-  result.at(2) = -incRay.dir.at(2) + 2*dot*inters.normal.at(2);
+  result.at(0) = incRay.dir.at(0) - 2*dp*inters.normal.at(0);
+  result.at(1) = incRay.dir.at(1) - 2*dp*inters.normal.at(1);
+  result.at(2) = incRay.dir.at(2) - 2*dp*inters.normal.at(2);
   normalizationizerificationator(result);
   return Ray(inters.pos, result);
+}
+
+/** Find reflect vector (not Ray) */
+std::vector<float> getRefVector(std::vector<float> lightDir, 
+			     std::vector<float> surfNorm) {
+  float dot = (lightDir.at(0)*surfNorm.at(0) + lightDir.at(1)*surfNorm.at(1) + 
+	       lightDir.at(2)*surfNorm.at(2));
+  std::vector<float> result(3, 0.0f);
+  result.at(0) = lightDir.at(0) - 2*dot*surfNorm.at(0);
+  result.at(1) = lightDir.at(1) - 2*dot*surfNorm.at(1);
+  result.at(2) = lightDir.at(2) - 2*dot*surfNorm.at(2);
+  normalizationizerificationator(result);
+  return result;
+}
+
+/** Get negative vector */
+std::vector<float> getNegative(std::vector<float> v) {
+  std::vector<float> result(3, 0.0f);
+  result.at(0) = -v.at(0);
+  result.at(1) = -v.at(1);
+  result.at(2) = -v.at(2);
+  return result;
+}
+
+// Ambient function
+std::vector<float> ambientify(std::vector<float> acolor, std::vector<float> icolor) {
+  std::vector<float> result(3, 0.0f);
+  result.at(0) = acolor.at(0) * icolor.at(0);
+  result.at(1) = acolor.at(1) * icolor.at(1);
+  result.at(2) = acolor.at(2) * icolor.at(2);
+  return result;
+}
+
+/** 
+ * Diffuse function
+ * returns Rd, diffuse RGB value */
+std::vector<float> diffusify(std::vector<float> dcolor, std::vector<float> icolor, 
+			     std::vector<float> lightDir, 
+			     std::vector<float> surfaceNormal)  {
+  // negative scalar due to the way we are interpreting our light rays
+  float scalar = std::max(-lightDir.at(0)*surfaceNormal.at(0) +
+			  -lightDir.at(1)*surfaceNormal.at(1) + 
+			  -lightDir.at(2)*surfaceNormal.at(2),
+			  0.0f);
+  std::vector<float> result(3, 0.0f);
+  result.at(0) = scalar*dcolor.at(0)* icolor.at(0);
+  result.at(1) = scalar*dcolor.at(1)* icolor.at(1);
+  result.at(2) = scalar*dcolor.at(2)* icolor.at(2);
+  return result;
+}
+
+/** 
+ * Specular function
+ * reflectedRay found using PARAMS lightDir and PARAMS surfaceNorm
+ * input vectors MUST be normalized first
+ * returns Rs, specular RGB value */
+std::vector<float> specularify(std::vector<float> scolor, std::vector<float> icolor, 
+			       std::vector<float> lightDir, 
+			       std::vector<float> surfaceNorm,
+			       std::vector<float> dirToViewer, float pCoeff)  { 
+  
+  // find reflectedRay
+  std::vector<float> reflectRay(3, 0.0f);
+  reflectRay = getRefVector(lightDir, surfaceNorm); // getRefRay already normalizes.
+
+  float scalar = std::max(-reflectRay.at(0)*dirToViewer.at(0) + 
+			  -reflectRay.at(1)*dirToViewer.at(1) + 
+			  -reflectRay.at(2)*dirToViewer.at(2),
+			  0.0f);
+  scalar = pow(scalar, pCoeff);
+
+  std::vector<float> result(3, 0.0f);
+  result.at(0) = scalar*scolor.at(0)* icolor.at(0);
+  result.at(1) = scalar*scolor.at(1)* icolor.at(1);
+  result.at(2) = scalar*scolor.at(2)* icolor.at(2);
+  return result;
+}
+
+/** 
+ * Combine and cap RGB values to find resultant RGB
+ * PARAM rgbs : array of the RGBs
+ * PARAM num : length of rgbs array (# of RGBs to be combined) */
+std::vector<float> shAverager(std::vector<float> rgbs[], int num) {
+  std::vector<float> result(3, 0.0f);
+  float r = 0.0f;
+  float g = 0.0f;
+  float b = 0.0f;
+  int i;
+  for (i = 0; i < num; i++) {
+    r = r + rgbs[i].at(0);
+    g = g + rgbs[i].at(1);
+    b = b + rgbs[i].at(2);
+  }
+  // Cap when overflow
+  if (r > 1.0f)
+    r = 1.0f;
+  if (g > 1.0f)
+    g = 1.0f;
+  if (b > 1.0f)
+    b = 1.0f;
+  result.at(0) = r;
+  result.at(1) = g;
+  result.at(2) = b;
+  return result;
+}
+
+/** Trace given RAY recursively to return the resultant RGB color */
+std::vector<float> RayTracer::trace(Ray &outRay, int depth) {
+  outRay.startPos.at(0) += outRay.dir.at(0) * 1;
+  outRay.startPos.at(1) += outRay.dir.at(1) * 1;
+  outRay.startPos.at(2) += outRay.dir.at(2) * 1;
+  std::vector<float> black(3, 0.0f);
+  std::vector<float> red(3, 0.0f);
+  red.at(0) = 1.0f;
+  std::vector<Intersection> intersections;
+  Intersection inters;
+  std::vector<Shape *>::iterator sh = shapes->begin();
+  for (int i = 0; sh != shapes->end(); ++sh, i++) {
+    if ((*sh)->tri != NULL) {
+      inters = (*sh)->tri->intersect(outRay, *this);
+      if (inters.isExists) {
+	intersections.push_back(inters);
+      }
+    } else if ((*sh)->sph != NULL) {
+      inters = (*sh)->sph->intersect(outRay, *this);
+      if (inters.isExists)
+	intersections.push_back(inters);
+    } else if ((*sh)->tn != NULL) {
+      inters = (*sh)->tn->intersect(outRay, *this);
+      if (inters.isExists)
+	intersections.push_back(inters);
+    } else {
+      printf("No type of shape?");
+    }
+  }
+  float closestT = -1;
+  Intersection firstHit;
+  // Find firsthit
+  for (unsigned int i = 0; i < intersections.size(); i++) {
+    // Self-shadowing handled here
+    if (intersections[i].isExists) {
+      if (intersections[i].sh->num == 10)
+	printf("10: %f\n", intersections[i].t);
+      if (intersections[i].sh->num == 9)
+	printf("9: %f\n", intersections[i].t);
+      if (closestT < 0.0f || intersections[i].t < closestT) {
+	closestT = intersections[i].t;
+	firstHit = intersections[i];
+      }
+    }
+  }
+  // No intersections
+  if (closestT == -1) {
+    return black;
+  }
+  
+  // We now know exact Intersection.
+  // Create rgb array (+2 for emission and reflection)
+  std::vector<float> rgbs[DLs->size() + PLs->size() + 2];
+
+  // Look through DLs
+  for (unsigned int i = 0; i < DLs->size(); i++) {
+    Intersection block;
+    int blocked = 0;
+    Ray cRay(firstHit.pos, getNegative(DLs->at(i)->lightDir));
+    // Check if collision is on correct side
+    if (dot(cRay.dir, firstHit.normal) <= 0.0f)
+      blocked = 1;
+    std::vector<Shape *>::iterator sh = shapes->begin();
+    // Search for obstructions (self-shadowing handled here)
+    // Self-shadowing handled by disallowing obstruction to be itself
+    for (int j = 0; sh != shapes->end(); ++sh, j++) {
+      if (blocked)
+	break;
+      if ((*sh)->tri != NULL) {
+	block = (*sh)->tri->intersect(cRay, *this);
+	if (block.isExists) {
+	  if (block.sh != firstHit.sh) {
+	    blocked = 1;
+	  }
+	}
+      } else if ((*sh)->sph != NULL) {
+	block = (*sh)->sph->intersect(cRay, *this);
+	if (block.isExists) {
+	  if (block.sh != firstHit.sh) {
+	    blocked = 1;
+	  }
+	}
+      } else if ((*sh)->tn != NULL) {
+	block = (*sh)->tn->intersect(cRay, *this);
+	if (block.isExists) {
+	  if (block.sh != firstHit.sh) {
+	    blocked = 1;
+	  }
+	}
+      } else {
+	printf("No type of shape?");
+      }
+    }
+    // Collision handling
+    if (!blocked) {
+      std::vector<float> dlresult[3];
+      dlresult[0] = ambientify(firstHit.sh->brdf.ka, DLs->at(i)->rgb);
+      dlresult[1] = diffusify(firstHit.sh->brdf.kd, DLs->at(i)->rgb,
+			      DLs->at(i)->lightDir, firstHit.normal);
+      dlresult[2] = specularify(firstHit.sh->brdf.ks, DLs->at(i)->rgb, 
+				DLs->at(i)->lightDir, firstHit.normal,
+				getNegative(outRay.dir), firstHit.sh->brdf.s);
+      rgbs[i] = shAverager(dlresult, 3);
+    } else {
+      rgbs[i] = black;
+    }
+  }
+  // Loop through PLs
+  for (unsigned int i = 0; i < PLs->size(); i++) {
+    Intersection block;
+    int blocked = 0;
+    float exactT = 0.0f;
+    Ray cRay(firstHit.pos, vectorizer(firstHit.pos, PLs->at(i)->pos));
+    // Check if collision is on correct side
+    if (dot(cRay.dir, firstHit.normal) <= 0.0f)
+      blocked = 1;
+    // Make a ray that goes from PL to p, which is backwards
+    Ray backwardscRay(PLs->at(i)->pos, vectorizer(PLs->at(i)->pos, firstHit.pos));
+    std::vector<Intersection> intersections1;
+    Intersection inters1;
+    sh = shapes->begin();
+    // Search for collisions
+    for (int j = 0; sh != shapes->end(); ++sh, j++) {
+      if (blocked)
+	break;
+      if ((*sh)->tri != NULL) {
+	inters1 = (*sh)->tri->intersect(backwardscRay, *this);
+	if (inters1.isExists) {
+	  intersections1.push_back(inters1);
+	  if (inters1.sh == firstHit.sh)
+	    exactT = inters1.t;
+	}
+      } else if ((*sh)->sph != NULL) {
+	inters1 = (*sh)->sph->intersect(backwardscRay, *this);
+	if (inters1.isExists) {
+	  intersections1.push_back(inters1);
+	  if (inters1.sh == firstHit.sh)
+	    exactT = inters1.t;
+	}
+      } else if ((*sh)->tn != NULL) {
+	inters1 = (*sh)->tn->intersect(backwardscRay, *this);
+	if (inters1.isExists) {
+	  intersections1.push_back(inters1);
+	  if (inters1.sh == firstHit.sh)
+	    exactT = inters1.t;
+	}
+      } else {
+	printf("No type of shape?");
+      }
+    }
+    for (unsigned int j = 0; !blocked && j < intersections1.size(); j++) {
+      // Find closest intersection (overlap handling is needed for PLs)
+      // Handle overlaps by allowing exact to take priority
+      if (intersections1[i].isExists) {
+	if (intersections1[i].t < exactT) {
+	  rgbs[DLs->size() + i] = black;
+	  blocked = 1;
+	  break;
+	}
+      }
+    }
+    // Collision handling
+    if (!blocked) {
+      std::vector<float> plresult[3];
+      plresult[0] = ambientify(firstHit.sh->brdf.ka, PLs->at(i)->rgb);
+      plresult[1] = diffusify(firstHit.sh->brdf.kd, PLs->at(i)->rgb,
+			      vectorizer(PLs->at(i)->pos, firstHit.pos), 
+			      firstHit.normal);
+      plresult[2] = specularify(firstHit.sh->brdf.ks, PLs->at(i)->rgb, 
+				vectorizer(PLs->at(i)->pos, firstHit.pos), 
+				firstHit.normal,
+				getNegative(outRay.dir), firstHit.sh->brdf.s);
+      rgbs[DLs->size() + i] = shAverager(plresult, 3);
+    }
+  }
+  std::vector<float> ke(3, 0.0f);
+  ke.at(0) = firstHit.sh->brdf.ke.at(0);
+  ke.at(1) = firstHit.sh->brdf.ke.at(1);
+  ke.at(2) = firstHit.sh->brdf.ke.at(2);
+  rgbs[DLs->size() + PLs->size()] = ke;
+  Ray recRay = createReflectRay(outRay, firstHit);
+  if (depth > 0) {
+    // Determine reflection portion
+    rgbs[DLs->size() + PLs->size() + 1] = trace(recRay, depth - 1);
+  } else {
+    rgbs[DLs->size() + PLs->size() + 1] = black;
+  }
+  return shAverager(rgbs, PLs->size() + DLs->size() + 2);
 }
 
 /* DirectionalLight constructor */
@@ -55,9 +342,13 @@ DirectionalLight::DirectionalLight(float x, float y, float z, float r, float g,
 }
 
 /* PointLight constructor (pos) */
-PointLight::PointLight(float x, float y, float z, float r, float g, float b):
+PointLight::PointLight(float x, float y, float z, float r, float g, float b, float a1,
+		       float a2, float a3):
   pos(3, 0.0f),
-  rgb(3, 0.0f)
+  rgb(3, 0.0f),
+  att1(a1),
+  att2(a2),
+  att3(a3)
 {
   pos.at(0) = x;
   pos.at(1) = y;
@@ -67,10 +358,19 @@ PointLight::PointLight(float x, float y, float z, float r, float g, float b):
   rgb.at(2) = b;
 }
 
+/** Shape constructor */
+Shape::Shape(unsigned int n) {
+  num = n;
+  tri = NULL;
+  sph = NULL;
+  tn = NULL;
+}
 
 /** Sphere constructor */
-Sphere::Sphere(float x, float y, float z, float rad, BRDF b):
-  center(3, 0.0f)
+Sphere::Sphere(){}
+Sphere::Sphere(float x, float y, float z, float rad, BRDF b, unsigned int n):
+  center(3, 0.0f),
+  num(n)
 {
   center.at(0) = x;
   center.at(1) = y;
@@ -97,12 +397,12 @@ int quadratic(const float &a, const float &b, const float &c, float &x0, float &
     x1 = c / q;
   }
   // Set x0 to closest positive parameter
-  if (x0 < 1.0f && x1 < 1.0f) { //Prevents selfshadowing as well
+  if (x0 <= 0.0f && x1 <= 0.0f) {
     return 0;
-  } else if (x0 < 1.0f) {
+  } else if (x0 <= 0.0f) {
     std::swap(x0, x1);
   } else {
-    if (x0 > x1 && x1 >= 1.0f) std::swap(x0, x1);
+    if (x0 > x1 && x1 > 0.0f) std::swap(x0, x1);
   }
   return 1;
 }
@@ -135,16 +435,10 @@ Intersection Sphere::intersect(Ray &ray, RayTracer &rt) {
     return inters;
   }
   inters.t = t0;
-  inters.sph = this;
+  inters.sh = rt.shapes->at(this->num);
   inters.pos.at(0) = ray.startPos.at(0) + t0*ray.dir.at(0);
   inters.pos.at(1) = ray.startPos.at(1) + t0*ray.dir.at(1);
   inters.pos.at(2) = ray.startPos.at(2) + t0*ray.dir.at(2);
-  // NULL if point not inbounds
-  if (!rt.isInBounds(inters.pos)) {
-    // SET isExists = 0
-    inters.isExists = 0;
-    return inters;
-  }
   inters.normal.at(0) = inters.pos.at(0) - center.at(0);
   inters.normal.at(1) = inters.pos.at(1) - center.at(1);
   inters.normal.at(2) = inters.pos.at(2) - center.at(2);
@@ -154,12 +448,14 @@ Intersection Sphere::intersect(Ray &ray, RayTracer &rt) {
 }
 
 /** Triangle constructor */
+Triangle::Triangle(){}
 Triangle::Triangle(std::vector<float> *p0, std::vector<float> *p1, 
-		   std::vector<float> *p2, BRDF b) {
+		   std::vector<float> *p2, BRDF b, unsigned int n) {
   v0 = p0;
   v1 = p1;
   v2 = p2;
   brdf = b;
+  num = n;
   normal = crossifier(*v0, *v1, *v2);
 }
 
@@ -191,8 +487,8 @@ Intersection Triangle::intersect(Ray &ray, RayTracer &rt) {
   //t = -(dot(normal, ray.startPos) + D) / dot(normal, ray.dir)
   float t = -(dot(normal, ray.startPos) + d) / nDotRayDir;
 
-  //checking if the triangle is behind the ray:
-  if (t<0) {
+  //checking if the triangle is already on or behind the ray:
+  if (t <= 0.0f) {
     inters.isExists = 0;
     return inters;
   }
@@ -284,15 +580,9 @@ Intersection Triangle::intersect(Ray &ray, RayTracer &rt) {
   inters.pos.at(1) = p.at(1);
   inters.pos.at(2) = p.at(2);
 
-  // NULL if point not inbounds
-  if (!rt.isInBounds(inters.pos)) {
-    // SET isExists = 0
-    inters.isExists = 0;
-    return inters;
-  }
-
   //At this point, we know the intersection point p we found is the ray-triangle intersection!
-  inters.tri = this;
+  
+  inters.sh = rt.shapes->at(this->num);
   inters.t = t;
   inters.normal.at(0) = normal.at(1);
   inters.normal.at(1) = normal.at(1);
@@ -303,9 +593,11 @@ Intersection Triangle::intersect(Ray &ray, RayTracer &rt) {
 }
 
 /** TriNormal constructor */
+TriNormal::TriNormal(){}
 TriNormal::TriNormal(std::vector<float> *p0, std::vector<float> *p1, 
 		     std::vector<float> *p2, std::vector<float> *l0,
-		     std::vector<float> *l1, std::vector<float> *l2, BRDF b) {
+		     std::vector<float> *l1, std::vector<float> *l2, BRDF b, 
+		     unsigned int n) {
   v0 = p0;
   v1 = p1;
   v2 = p2;
@@ -313,11 +605,17 @@ TriNormal::TriNormal(std::vector<float> *p0, std::vector<float> *p1,
   n1 = l1;
   n2 = l2;
   brdf = b;
+  num = n;
 }
 
 /* Calculate adjusted normal */
 std::vector<float> TriNormal::trinormalFinder(Intersection &inters) {
   return std::vector<float>(3, 0.0f);
+}
+
+/* Find TriNormal Intersection */
+Intersection TriNormal::intersect(Ray &ray, RayTracer &rt) {
+  return Intersection();
 }
 
 /** BRDF constructor */
@@ -330,235 +628,4 @@ BRDF::BRDF():
   s(0.0f)
 {}
 
-
-
-
-
-
-
-
-
-/** Check to see if a point, given a CAMERA, exists within our view */
-int RayTracer::isInBounds(const std::vector<float> p) {
-  // Distance ratio between camera and point
-  float dr;
-  float xMin, xMax, yMin, yMax, zMin, zMax;
-  
-  // lulz
-  
-  // dir: +x
-  if (cam->lookAt.at(0) == 1) {
-    dr = (-cam->lookFrom.at(0) + p.at(0))/cam->d;
-    if (cam->upDir.at(1) == 1) {
-      // up: +y
-      yMin = cam->ul.at(1) - (cam->h/2) * (dr + 1);
-      yMax = cam->ul.at(1) + (cam->h/2) * (dr - 1);
-      zMax = cam->ul.at(2) + (cam->w/2) * (dr + 1);
-      zMin = cam->ul.at(2) - (cam->w/2) * (dr - 1);
-    } else if (cam->upDir.at(1) == -1) {
-      // up: -y
-      yMin = cam->ul.at(1) - (cam->h/2) * (dr - 1);
-      yMax = cam->ul.at(1) + (cam->h/2) * (dr + 1);
-      zMax = cam->ul.at(2) + (cam->w/2) * (dr - 1);
-      zMin = cam->ul.at(2) - (cam->w/2) * (dr + 1);
-    } else if (cam->upDir.at(2) == 1) {
-      // up: +z
-      yMin = cam->ul.at(1) - (cam->w/2) * (dr + 1);
-      yMax = cam->ul.at(1) + (cam->w/2) * (dr - 1);
-      zMax = cam->ul.at(2) + (cam->h/2) * (dr - 1);
-      zMin = cam->ul.at(2) - (cam->h/2) * (dr + 1);
-    } else if (cam->upDir.at(2) == -1) {
-      // up: -z
-      yMin = cam->ul.at(1) - (cam->w/2) * (dr - 1);
-      yMax = cam->ul.at(1) + (cam->w/2) * (dr + 1);
-      zMax = cam->ul.at(2) + (cam->h/2) * (dr + 1);
-      zMin = cam->ul.at(2) - (cam->h/2) * (dr - 1);
-    } else {
-      std::cout << " inBounds has an error!!!! " << std::endl;
-      exit(1);
-    }
-    if (p.at(1) >= yMin && p.at(1) <= yMax && p.at(2) <= zMax && p.at(2) >= zMin)
-      return 1;
-    return 0;
-    
-    // dir: -x
-  } else if (cam->lookAt.at(0) == -1) {
-    dr = (cam->lookFrom.at(0) - p.at(0))/cam->d;
-    if (cam->upDir.at(1) == 1) {
-      // up: +y
-      yMin = cam->ul.at(1) - (cam->h/2) * (dr + 1);
-      yMax = cam->ul.at(1) + (cam->h/2) * (dr - 1);
-      zMax = cam->ul.at(2) + (cam->w/2) * (dr - 1);
-      zMin = cam->ul.at(2) - (cam->w/2) * (dr + 1);
-    } else if (cam->upDir.at(1) == -1) {
-      // up: -y
-      yMin = cam->ul.at(1) - (cam->h/2) * (dr - 1);
-      yMax = cam->ul.at(1) + (cam->h/2) * (dr + 1);
-      zMax = cam->ul.at(2) + (cam->w/2) * (dr + 1);
-      zMin = cam->ul.at(2) - (cam->w/2) * (dr - 1);
-    } else if (cam->upDir.at(2) == 1) {
-      // up: +z
-      yMin = cam->ul.at(1) - (cam->w/2) * (dr - 1);
-      yMax = cam->ul.at(1) + (cam->w/2) * (dr + 1);
-      zMax = cam->ul.at(2) + (cam->h/2) * (dr - 1);
-      zMin = cam->ul.at(2) - (cam->h/2) * (dr + 1);
-    } else if (cam->upDir.at(2) == -1) {
-      // up: -z
-      yMin = cam->ul.at(1) - (cam->w/2) * (dr + 1);
-      yMax = cam->ul.at(1) + (cam->w/2) * (dr - 1);
-      zMax = cam->ul.at(2) + (cam->h/2) * (dr + 1);
-      zMin = cam->ul.at(2) - (cam->h/2) * (dr - 1);
-    } else {
-      std::cout << " inBounds has an error!!!! " << std::endl;
-      exit(1);
-    }
-    if (p.at(1) >= yMin && p.at(1) <= yMax && p.at(2) <= zMax && p.at(2) >= zMin)
-      return 1;
-    return 0;
-    
-    // dir: +y
-  } else if (cam->lookAt.at(1) == 1) {
-    dr = (-cam->lookFrom.at(1) + p.at(1))/cam->d;
-    if (cam->upDir.at(0) == 1) {
-      // up: +x
-      xMin = cam->ul.at(0) - (cam->h/2) * (dr + 1);
-      xMax = cam->ul.at(0) + (cam->h/2) * (dr - 1);
-      zMax = cam->ul.at(2) + (cam->w/2) * (dr - 1);
-      zMin = cam->ul.at(2) - (cam->w/2) * (dr + 1);
-    } else if (cam->upDir.at(0) == -1) {
-      // up: -x
-      xMin = cam->ul.at(0) - (cam->h/2) * (dr - 1);
-      xMax = cam->ul.at(0) + (cam->h/2) * (dr + 1);
-      zMax = cam->ul.at(2) + (cam->w/2) * (dr + 1);
-      zMin = cam->ul.at(2) - (cam->w/2) * (dr - 1);
-    } else if (cam->upDir.at(2) == 1) {
-      // up: +z
-      xMin = cam->ul.at(0) - (cam->w/2) * (dr - 1);
-      xMax = cam->ul.at(0) + (cam->w/2) * (dr + 1);
-      zMax = cam->ul.at(2) + (cam->h/2) * (dr - 1);
-      zMin = cam->ul.at(2) - (cam->h/2) * (dr + 1);
-    } else if (cam->upDir.at(2) == -1) {
-      // up: -z
-      xMin = cam->ul.at(0) - (cam->w/2) * (dr + 1);
-      xMax = cam->ul.at(0) + (cam->w/2) * (dr - 1);
-      zMax = cam->ul.at(2) + (cam->h/2) * (dr + 1);
-      zMin = cam->ul.at(2) - (cam->h/2) * (dr - 1);
-    } else {
-      std::cout << " inBounds has an error!!!! " << std::endl;
-      exit(1);
-    }
-    if (p.at(0) >= xMin && p.at(0) <= xMax && p.at(2) <= zMax && p.at(2) >= zMin)
-      return 1;
-    return 0;
-  
-    // dir: -y
-  } else if (cam->lookAt.at(1) == -1) {
-    dr = (cam->lookFrom.at(1) - p.at(1))/cam->d;
-    if (cam->upDir.at(0) == 1) {
-      // up: +x
-      xMin = cam->ul.at(0) - (cam->h/2) * (dr + 1);
-      xMax = cam->ul.at(0) + (cam->h/2) * (dr - 1);
-      zMax = cam->ul.at(2) + (cam->w/2) * (dr + 1);
-      zMin = cam->ul.at(2) - (cam->w/2) * (dr - 1);
-    } else if (cam->upDir.at(0) == -1) {
-      // up: -x
-      xMin = cam->ul.at(0) - (cam->h/2) * (dr - 1);
-      xMax = cam->ul.at(0) + (cam->h/2) * (dr + 1);
-      zMax = cam->ul.at(2) + (cam->w/2) * (dr - 1);
-      zMin = cam->ul.at(2) - (cam->w/2) * (dr + 1);
-    } else if (cam->upDir.at(2) == 1) {
-      // up: +z
-      xMin = cam->ul.at(0) - (cam->w/2) * (dr + 1);
-      xMax = cam->ul.at(0) + (cam->w/2) * (dr - 1);
-      zMax = cam->ul.at(2) + (cam->h/2) * (dr - 1);
-      zMin = cam->ul.at(2) - (cam->h/2) * (dr + 1);
-    } else if (cam->upDir.at(2) == -1) {
-      // up: -z
-      xMin = cam->ul.at(0) - (cam->w/2) * (dr - 1);
-      xMax = cam->ul.at(0) + (cam->w/2) * (dr + 1);
-      zMax = cam->ul.at(2) + (cam->h/2) * (dr + 1);
-      zMin = cam->ul.at(2) - (cam->h/2) * (dr - 1);
-    } else {
-      std::cout << " inBounds has an error!!!! " << std::endl;
-      exit(1);
-    }
-    if (p.at(0) >= xMin && p.at(0) <= xMax && p.at(2) <= zMax && p.at(2) >= zMin)
-      return 1;
-    return 0;
-    
-    // dir: +z
-  } else if (cam->lookAt.at(2) == 1) {
-    dr = (-cam->lookFrom.at(2) + p.at(2))/cam->d;
-    if (cam->upDir.at(0) == 1) {
-      // up: +x
-      xMin = cam->ul.at(0) - (cam->h/2) * (dr + 1);
-      xMax = cam->ul.at(0) + (cam->h/2) * (dr - 1);
-      yMax = cam->ul.at(1) + (cam->w/2) * (dr + 1);
-      yMin = cam->ul.at(1) - (cam->w/2) * (dr - 1);
-    } else if (cam->upDir.at(0) == -1) {
-      // up: -x
-      xMin = cam->ul.at(0) - (cam->h/2) * (dr - 1);
-      xMax = cam->ul.at(0) + (cam->h/2) * (dr + 1);
-      yMax = cam->ul.at(1) + (cam->w/2) * (dr - 1);
-      yMin = cam->ul.at(1) - (cam->w/2) * (dr + 1);
-    } else if (cam->upDir.at(1) == 1) {
-      // up: +y
-      xMin = cam->ul.at(0) - (cam->w/2) * (dr + 1);
-      xMax = cam->ul.at(0) + (cam->w/2) * (dr - 1);
-      yMax = cam->ul.at(1) + (cam->h/2) * (dr - 1);
-      yMin = cam->ul.at(1) - (cam->h/2) * (dr + 1);
-    } else if (cam->upDir.at(1) == -1) {
-      // up: -y
-      xMin = cam->ul.at(0) - (cam->w/2) * (dr - 1);
-      xMax = cam->ul.at(0) + (cam->w/2) * (dr + 1);
-      yMax = cam->ul.at(1) + (cam->h/2) * (dr + 1);
-      yMin = cam->ul.at(1) - (cam->h/2) * (dr - 1);
-    } else {
-      std::cout << " inBounds has an error!!!! " << std::endl;
-      exit(1);
-    }
-    if (p.at(0) >= xMin && p.at(0) <= xMax && p.at(1) <= yMax && p.at(1) >= yMin)
-      return 1;
-    return 0;
-    
-    // dir: -z
-  } else if (cam->lookAt.at(2) == -1) {
-    dr = (cam->lookFrom.at(2) - p.at(2))/cam->d;
-    if (cam->upDir.at(0) == 1) {
-      // up: +x
-      xMin = cam->ul.at(0) - (cam->h/2) * (dr + 1);
-      xMax = cam->ul.at(0) + (cam->h/2) * (dr - 1);
-      yMax = cam->ul.at(1) + (cam->w/2) * (dr - 1);
-      yMin = cam->ul.at(1) - (cam->w/2) * (dr + 1);
-    } else if (cam->upDir.at(0) == -1) {
-      // up: -x
-      xMin = cam->ul.at(0) - (cam->h/2) * (dr - 1);
-      xMax = cam->ul.at(0) + (cam->h/2) * (dr + 1);
-      yMax = cam->ul.at(1) + (cam->w/2) * (dr + 1);
-      yMin = cam->ul.at(1) - (cam->w/2) * (dr - 1);
-    } else if (cam->upDir.at(1) == 1) {
-      // up: +y
-      xMin = cam->ul.at(0) - (cam->w/2) * (dr - 1);
-      xMax = cam->ul.at(0) + (cam->w/2) * (dr + 1);
-      yMax = cam->ul.at(1) + (cam->h/2) * (dr - 1);
-      yMin = cam->ul.at(1) - (cam->h/2) * (dr + 1);
-    } else if (cam->upDir.at(1) == -1) {
-      // up: -y
-      xMin = cam->ul.at(0) - (cam->w/2) * (dr + 1);
-      xMax = cam->ul.at(0) + (cam->w/2) * (dr - 1);
-      yMax = cam->ul.at(1) + (cam->h/2) * (dr + 1);
-      yMin = cam->ul.at(1) - (cam->h/2) * (dr - 1);
-    } else {
-      std::cout << " inBounds has an error!!!! " << std::endl;
-      exit(1);
-    }
-    if (p.at(0) >= xMin && p.at(0) <= xMax && p.at(1) <= yMax && p.at(1) >= yMin)
-      return 1;
-    return 0;
-    
-  } else {
-    std::cout << " inBounds has an error!!!! " << std::endl;
-    exit(1);
-  }
-}
 

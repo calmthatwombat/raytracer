@@ -9,9 +9,6 @@
    PARAM Sampler : needs Sampler object to get access to a Sample and the Camera */
 void render(int width, int height, int depth, std::string outputFileName, 
 	    Sampler *sampler){
-  //Getting the camera.right and camera.down for the iteration
-  char camRight = sampler->camera->right;
-  char camDown = sampler->camera->down;
 
   //Initializing a sample object to cam.ul coordinates:
   Sample samp(sampler->camera->ul.at(0), sampler->camera->ul.at(1), sampler->camera->ul.at(2));
@@ -22,80 +19,62 @@ void render(int width, int height, int depth, std::string outputFileName,
       Ray outRay = sampler->camera->generateRay(samp);
 
       //getting the rgb value returned by calling raytracer.trace
-      samp.rgb = sampler->raytracer->trace(outRay, depth);
+      samp.rgb = sampler->raytracer->trace(outRay, 5);
 
       //Passing the rgb value to film (this rgb value will to be saved in the Film.bitmap)
-      sampler->film->setPixel(i, j, samp.rgb);
+      sampler->film->setPixel(i, height - 1 - j, samp.rgb);
 
-      //increment/decrement the samp object depending on what is camera->right
-      if (camRight == 'X') {
-        samp.x += 1.0f;
-	if (i == width - 1)	// check for reset
-	  samp.x = sampler->camera->ul.at(0);
-      } else if (camRight == 'x') {
-        samp.x -= 1.0f;
-	if (i == width - 1)	// check for reset
-	  samp.x = sampler->camera->ul.at(0);
-      } else if (camRight == 'Y') {
-        samp.y += 1.0f;
-	if (i == width - 1)	// check for reset
-	  samp.y = sampler->camera->ul.at(1);
-      } else if (camRight == 'y') {
-        samp.y -= 1.0f;
-	if (i == width - 1)	// check for reset
-	  samp.y = sampler->camera->ul.at(1);
-      } else if (camRight == 'Z') {
-        samp.z += 1.0f;
-	if (i == width - 1)	// check for reset
-	  samp.z = sampler->camera->ul.at(2);
-      } else if (camRight == 'z') {
-        samp.z -= 1.0f;
-	if (i == width - 1)	// check for reset
-	  samp.z = sampler->camera->ul.at(2);
-      }
-    }
-    //increment/decrement the samp object depending on what is camera.down
-    if (camDown == 'X') {
-      samp.x += 1.0f;
-    } else if (camDown == 'x') {
-      samp.x -= 1.0f;
-    } else if (camDown == 'Y') {
-      samp.y += 1.0f;
-    } else if (camDown == 'y') {
-      samp.y -= 1.0f;
-    } else if (camDown == 'Z') {
-      samp.z += 1.0f;
-    } else if (camDown == 'z') {
-      samp.z -= 1.0f;
+      // Increment samp.x, samp.y, and samp.z by cam->right
+      samp.x += sampler->camera->right.at(0);
+      samp.y += sampler->camera->right.at(1);
+      samp.z += sampler->camera->right.at(2);
     }
 
+    // Reset the i portion
+    samp.x -= sampler->camera->right.at(0) * width;
+    samp.y -= sampler->camera->right.at(1) * width;
+    samp.z -= sampler->camera->right.at(2) * width;
+
+    // Increment samp.x, samp.y, and samp.z by cam->down
+    samp.x += sampler->camera->down.at(0);
+    samp.y += sampler->camera->down.at(1);
+    samp.z += sampler->camera->down.at(2);
   }
-  //A png image is outputted by calling the film->outputImage method!
-  //At this point, the Film.Bitmap (size width*height) should be completey filled, and ready
-  //to produce a PNG image!
+
+  /* film->outputImage is called to print the image and complete the program.
+   * the bitmap should be completely filled by now */
   sampler->film->outputImage(outputFileName);
-
-
 }
 
-//Lizzie: I addded this main method just so we know where to start the parsing. This can be changed, I guess.
 int main(int argc, char *argv[]) {
+  // Start stopwatch
+  double start = clock();
+  
   // Parsing command line for input file name:
   std::string file = std::string(argv[1]);
   
   // Initialize/Declare everything!
-  float windowW, windowH;
-  int maxDepth;
+  float windowW = 0;
+  float windowH = 0;
+  unsigned int maxDepth = 0;
   Camera c;
+  unsigned int shapeNum = 0;
   BRDF brdf;
+  float a1 = 1.0f;
+  float a2 = 0.0f;
+  float a3 = 0.0f;
 
   // Initialize Containers
   std::vector< std::vector<float> > vertices;
   std::vector< std::vector<float> > trinormvertices;
-  std::vector< std::vector<float> > trinormnormals;
-  std::vector<TriNormal *> trinorms0;
-  std::vector<Triangle *> triangles0;
-  std::vector<Sphere *> spheres0;
+  std::vector< std::vector<float> > trinormnormals; 
+  std::vector<Shape *> shapes0;
+  std::vector<Shape> shapes1;
+  std::vector<Sphere> spheres1;
+  std::vector<Triangle> triangles1;
+  std::vector<TriNormal> trinormals1;
+  std::vector<DirectionalLight> DLs1;
+  std::vector<PointLight> PLs1;
   std::vector<DirectionalLight *> DLs0;
   std::vector<PointLight *> PLs0;
   
@@ -165,11 +144,15 @@ int main(int argc, char *argv[]) {
       // sphere x y z radius
       //  Deﬁnes a sphere with a given position and radius.
       else if(!splitline[0].compare("sphere")) {
-	spheres0.push_back(new Sphere(atof(splitline[1].c_str()),
-				     atof(splitline[2].c_str()),
-				     atof(splitline[3].c_str()),
-				     atof(splitline[4].c_str()),
-				     brdf));
+	Shape shape(shapeNum);
+	Sphere s(atof(splitline[1].c_str()),
+		 atof(splitline[2].c_str()),
+		 atof(splitline[3].c_str()),
+		 atof(splitline[4].c_str()),
+		 brdf, shapeNum++);
+	spheres1.push_back(s);
+	shape.brdf = brdf;
+	shapes1.push_back(shape);
         //   STORE CURRENT TOP OF MATRIX STACK
       }
 
@@ -215,10 +198,14 @@ int main(int argc, char *argv[]) {
       //  be speciﬁed in counter-clockwise order. Your code should internally 
       //  compute a face normal for this triangle.
       else if(!splitline[0].compare("tri")) {
+	Shape shape(shapeNum);
 	std::vector<float> *v1 = &vertices.at(atoi(splitline[1].c_str()));
 	std::vector<float> *v2 = &vertices.at(atoi(splitline[2].c_str()));
 	std::vector<float> *v3 = &vertices.at(atoi(splitline[3].c_str()));
-	triangles0.push_back(new Triangle(v1, v2, v3, brdf));
+	Triangle t(v1, v2, v3, brdf, shapeNum++);
+	triangles1.push_back(t);
+	shape.brdf = brdf;
+	shapes1.push_back(shape);
         //   STORE CURRENT TOP OF MATRIX
       }
       //trinormal v1 v2 v3
@@ -227,13 +214,17 @@ int main(int argc, char *argv[]) {
       //  and when doing shading, you should interpolate the normals 
       //  for intermediate points on the triangle.
       else if(!splitline[0].compare("trinormal")) {
+	Shape shape(shapeNum);
 	std::vector<float> *v1 = &trinormvertices.at(atoi(splitline[1].c_str()));
 	std::vector<float> *v2 = &trinormvertices.at(atoi(splitline[2].c_str()));
 	std::vector<float> *v3 = &trinormvertices.at(atoi(splitline[3].c_str()));
 	std::vector<float> *n1 = &trinormnormals.at(atoi(splitline[1].c_str()));
 	std::vector<float> *n2 = &trinormnormals.at(atoi(splitline[2].c_str()));
 	std::vector<float> *n3 = &trinormnormals.at(atoi(splitline[3].c_str()));
-	trinorms0.push_back(new TriNormal(v1, v2, v3, n1, n2, n3, brdf));
+	TriNormal t(v1, v2, v3, n1, n2, n3, brdf, shapeNum++);
+	trinormals1.push_back(t);
+	shape.brdf = brdf;
+	shapes1.push_back(shape);
         //   STORE CURRENT TOP OF MATRIX STACK
       }
 
@@ -282,7 +273,7 @@ int main(int argc, char *argv[]) {
       //directional x y z r g b
       //  The direction to the light source, and the color, as in OpenGL.
       else if(!splitline[0].compare("directional")) {
-	DLs0.push_back(new DirectionalLight (atof(splitline[1].c_str()),
+	DLs1.push_back(*new DirectionalLight (atof(splitline[1].c_str()),
 					     atof(splitline[2].c_str()),
 					     atof(splitline[3].c_str()),
 					     atof(splitline[4].c_str()),
@@ -292,20 +283,20 @@ int main(int argc, char *argv[]) {
       //point x y z r g b
       //  The location of a point source and the color, as in OpenGL.
       else if(!splitline[0].compare("point")) {
-	PLs0.push_back(new PointLight (atof(splitline[1].c_str()),
+	PLs1.push_back(*new PointLight (atof(splitline[1].c_str()),
 				       atof(splitline[2].c_str()),
 				       atof(splitline[3].c_str()),
 				       atof(splitline[4].c_str()),
 				       atof(splitline[5].c_str()),
-				       atof(splitline[6].c_str())));
+				       atof(splitline[6].c_str()), a1, a2, a3));
       }
       //attenuation const linear quadratic
       //  Sets the constant, linear and quadratic attenuations 
       //  (default 1,0,0) as in OpenGL.
       else if(!splitline[0].compare("attenuation")) {
-        // const: atof(splitline[1].c_str())
-        // linear: atof(splitline[2].c_str())
-        // quadratic: atof(splitline[3].c_str())
+        a1 = atof(splitline[1].c_str());
+        a2 = atof(splitline[2].c_str());
+        a3 = atof(splitline[3].c_str());
       }
       //ambient r g b
       //  The global ambient color to be added for each object 
@@ -355,35 +346,46 @@ int main(int argc, char *argv[]) {
   RayTracer rt(&c);
   Sampler s(&c, &rt, &f);
   // Create iterators for containers
+  unsigned int sphCount = 0;
+  unsigned int triCount = 0;
+  unsigned int tnCount = 0;
+  // Set up shapes0, the finalized container
+  for (unsigned int i = 0; i < shapes1.size(); i++) {
+    if (sphCount < spheres1.size() && spheres1[sphCount].num == i) {
+      shapes1[i].sph = &spheres1[sphCount++];
+      shapes0.push_back(&shapes1[i]);
+    } else if (triCount < triangles1.size() && triangles1[triCount].num == i) {
+      shapes1[i].tri = &triangles1[triCount++];
+      shapes0.push_back(&shapes1[i]);
+    } else if (tnCount < trinormals1.size() && trinormals1[tnCount].num == i) {
+      shapes1[i].tn = &trinormals1[tnCount++];
+      shapes0.push_back(&shapes1[i]);
+    } else {
+      printf("container maker not working");
+      std::exit(1);
+    }
+  }
+  for (unsigned int i = 0; i < PLs1.size(); i++) {
+    PLs0.push_back(&PLs1[i]);
+  }
+  for (unsigned int i = 0; i < DLs1.size(); i++) {
+    DLs0.push_back(&DLs1[i]);
+  }
   
-  rt.trinorms = &trinorms0;
-  rt.triangles = &triangles0;
-  rt.spheres = &spheres0;
+  rt.shapes = &shapes0;
   rt.DLs = &DLs0;
   rt.PLs = &PLs0;
-
+  
   // GOOOOOOOOOOOOOOO!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   render(windowW, windowH, maxDepth, fname, &s);
-  /**
-  //  some test shit
-  Camera c;
-  c.w = 100;
-  c.h = 100;
-  c.lookFrom.at(0) = 0;
-  c.lookFrom.at(1) = 0;
-  c.lookFrom.at(2) = 50;
-  c.lookAt.at(0) = 0;
-  c.lookAt.at(1) = 0;
-  c.lookAt.at(2) = -1;
-  c.upDir.at(1) = 1;
-  c.fov = 80;
-  c.setD();
-  c.setULRD();
-  Film f(100, 100);
-  RayTracer rt(c);
-  Sampler s(c, rt, f);
-  render(100, 100, 5, "output.png", s);
-  */
+  double total = (clock() - start) / 1000000;
+  if (total > 3599) {
+    std::cout<<"Time taken: " << total / 3600 << " hours\n";
+  } else if (total > 59) {
+    std::cout<<"Time taken: " << total/60 << " minutes\n";
+  } else {
+    std::cout<<"Time taken: " << total << " seconds\n";
+  }
 }
 
 

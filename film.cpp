@@ -25,7 +25,10 @@ void Film::setPixel(int x, int y, std::vector<float> rgb){
   color.rgbGreen = (double) rgb.at(1) * 255;
   color.rgbBlue = (double) rgb.at(2) * 255;
 
-  FreeImage_SetPixelColor(bitmap, x, y, &color);//passing a pointer to the color struct
+  float xf = 0.5f + (float) x;
+  float yf = 0.5f + (float) y;
+
+  FreeImage_SetPixelColor(bitmap, xf, yf, &color);//passing a pointer to the color struct
 
 }
 
@@ -39,7 +42,7 @@ void Film::outputImage(std::string outputFileName){
   memcpy(output, outputFileName.c_str(), outputFileName.size());*/
   
   if (FreeImage_Save(FIF_PNG, bitmap, outputFileName.c_str(), 0)) //outputting the file
-    std::cout << "Image successfully saved!!!" << std::endl;
+    std::cout << "Saved." << std::endl;
 
   FreeImage_DeInitialise(); //cleanup.
 }

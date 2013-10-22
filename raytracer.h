@@ -12,6 +12,7 @@ class RayTracer;
 class Intersection;
 class DirectionalLight;
 class PointLight;
+class Shape;
 class Sphere;
 class Triangle;
 class TriNormal;
@@ -22,15 +23,9 @@ class RayTracer {
   RayTracer(Camera *_c);
   /* Trace given RAY recursively to return the resultant color */
   std::vector<float> trace(Ray &outRay, int depth);
-  /* After finding an intersection, determine reflection ray at pos */
-  Ray createReflectRay(Ray &incRay, Intersection inters);
-  /** Check to see if a point, given a CAMERA, exists within our view */
-  int isInBounds(const std::vector<float> pos);
   Camera *cam;
   // Containers for iterators
-  std::vector<TriNormal *> *trinorms;
-  std::vector<Triangle *> *triangles;
-  std::vector<Sphere *> *spheres;
+  std::vector<Shape *> *shapes;
   std::vector<DirectionalLight *> *DLs;
   std::vector<PointLight *> *PLs;
 };
@@ -42,8 +37,7 @@ class Intersection {
   std::vector<float> pos; //intersection point
   std::vector<float> normal; //normal at intersection
   // Class only contains one of the following. Use null pointers to check which
-  Triangle *tri;
-  Sphere *sph;
+  Shape *sh;
   // Parameter root of intersecting RAY equation
   float t;
   // isExists field (false if intersection does not exist)
@@ -63,9 +57,11 @@ class DirectionalLight {
 class PointLight {
  public:
   /* PointLight constructor (pos) */
-  PointLight(float x, float y, float z, float r, float g, float b);
+  PointLight(float x, float y, float z, float r, float g, float b, float a1, 
+	     float a2, float a3);
   std::vector<float> pos;
   std::vector<float> rgb;
+  float att1, att2, att3;
 };
 
 /** BRDF class */
@@ -76,25 +72,39 @@ class BRDF {
   float s;
 };
 
+/** Shape class */
+class Shape {
+ public:
+  Shape(unsigned int n);
+  Triangle *tri;
+  Sphere *sph;
+  TriNormal *tn;
+  unsigned int num;
+  BRDF brdf;
+};
+
 /** Sphere class */
 class Sphere {
  public:
+  Sphere();
   /* Sphere constructor */
-  Sphere(float x, float y, float z, float rad, BRDF b);
+  Sphere(float x, float y, float z, float rad, BRDF b, unsigned int n);
   /* Given an incoming ray, isExists == 0 if no intersection, otherwise returns
    * resultant intersection */
   Intersection intersect(Ray &ray, RayTracer &rt);
   std::vector<float> center;
   BRDF brdf;
   float radius;
+  unsigned int num;
 };
 
 /** Triangle class */
 class Triangle {
  public:
+  Triangle();
   /* Triangle constructor */
   Triangle(std::vector<float> *p0, std::vector<float> *p1, std::vector<float> *p2,
-	   BRDF b);
+	   BRDF b, unsigned int n);
   /* Given an incoming ray, isExists == 0 if no intersection, otherwise returns
    * resultant intersection */
   Intersection intersect(Ray &ray, RayTracer &rt);
@@ -103,15 +113,17 @@ class Triangle {
   // Normal (arbitrary direction, figure out appropriate one later)
   std::vector<float> normal;
   BRDF brdf;
+  unsigned int num;
 };
 
 /** TriNormal class */
 class TriNormal {
  public:
+  TriNormal();
   /* Triangle constructor */
   TriNormal(std::vector<float> *p0, std::vector<float> *p1, std::vector<float> *p2,
 	    std::vector<float> *l0, std::vector<float> *l1, std::vector<float> *l2,
-	    BRDF b);
+	    BRDF b, unsigned int n);
   /* Given an incoming ray, isExists == 0 if no intersection, otherwise returns
    * resultant intersection */
   Intersection intersect(Ray &ray, RayTracer &rt);
@@ -122,11 +134,48 @@ class TriNormal {
   // Normal (trinormal arbitraries)
   std::vector<float> *n0, *n1, *n2;
   BRDF brdf;
+  unsigned int num;
 };
 
 /** Method Declarations */
 /** Quadratic solver, sets x0 and x1 to to the roots of quadratic function, given
  *  a, b, and c of the quadratic formula. */
 int quadratic(const float &a, const float &b, const float &c, float &x0, float &x1);
+
+/** Finds the vector from pt1 to pt2 */
+std::vector<float> vectorizer(std::vector<float> pt1, std::vector<float> pt2);
+
+/** After finding an intersection, determine reflection ray at pos */
+Ray createReflectRay(Ray &incRay, Intersection &inters);
+
+/** Find reflect vector (not Ray) */
+std::vector<float> getRefVector(std::vector<float> lightDir, 
+				std::vector<float> surfNorm);
+
+/** Get negative vector */
+std::vector<float> getNegative(std::vector<float> v);
+
+/** Ambient function */
+std::vector<float> ambientify(std::vector<float> acolor, std::vector<float> icolor);
+
+/** Diffuse function
+ *  returns Rd, diffuse RGB value */
+std::vector<float> diffusify(std::vector<float> dcolor, std::vector<float> icolor, 
+			     std::vector<float> lightDir, 
+			     std::vector<float> surfaceNormal);
+
+/** Specular function
+ * reflectedRay found using PARAMS lightDir and PARAMS surfaceNorm
+ * input vectors MUST be normalized first
+ * returns Rs, specular RGB value */
+std::vector<float> specularify(std::vector<float> scolor, std::vector<float> icolor, 
+			       std::vector<float> lightDir, 
+			       std::vector<float> surfaceNorm, 
+			       std::vector<float> dirToViewer, float pCoeff);
+
+/** Combine and cap RGB values to find resultant RGB
+ * PARAM rgbs : array of the RGBs
+ * PARAM num : length of rgbs array (# of RGBs to be combined) */
+std::vector<float> shAverager(std::vector<float> rgbs[], int num);
 
 #endif
