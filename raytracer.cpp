@@ -139,9 +139,9 @@ std::vector<float> shAverager(std::vector<float> rgbs[], int num) {
 
 /** Trace given RAY recursively to return the resultant RGB color */
 std::vector<float> RayTracer::trace(Ray &outRay, int depth) {
-  outRay.startPos.at(0) += outRay.dir.at(0) * 1;
-  outRay.startPos.at(1) += outRay.dir.at(1) * 1;
-  outRay.startPos.at(2) += outRay.dir.at(2) * 1;
+  outRay.startPos.at(0) += outRay.dir.at(0) * 0.001;
+  outRay.startPos.at(1) += outRay.dir.at(1) * 0.001;
+  outRay.startPos.at(2) += outRay.dir.at(2) * 0.001;
   std::vector<float> black(3, 0.0f);
   std::vector<float> red(3, 0.0f);
   red.at(0) = 1.0f;
@@ -172,10 +172,6 @@ std::vector<float> RayTracer::trace(Ray &outRay, int depth) {
   for (unsigned int i = 0; i < intersections.size(); i++) {
     // Self-shadowing handled here
     if (intersections[i].isExists) {
-      if (intersections[i].sh->num == 10)
-	printf("10: %f\n", intersections[i].t);
-      if (intersections[i].sh->num == 9)
-	printf("9: %f\n", intersections[i].t);
       if (closestT < 0.0f || intersections[i].t < closestT) {
 	closestT = intersections[i].t;
 	firstHit = intersections[i];
@@ -319,8 +315,18 @@ std::vector<float> RayTracer::trace(Ray &outRay, int depth) {
   rgbs[DLs->size() + PLs->size()] = ke;
   Ray recRay = createReflectRay(outRay, firstHit);
   if (depth > 0) {
-    // Determine reflection portion
-    rgbs[DLs->size() + PLs->size() + 1] = trace(recRay, depth - 1);
+    // Determine reflection
+    if (!firstHit.sh->brdf.s) {
+      // No reflection necessary
+      rgbs[DLs->size() + PLs->size() + 1] = black;
+    } else {
+      std::vector<float> icolor = trace(recRay, depth - 1);
+      rgbs[DLs->size() + 
+	   PLs->size() + 
+	   1] = specularify(firstHit.sh->brdf.ks, icolor, 
+			    getNegative(recRay.dir), firstHit.normal,
+			    getNegative(outRay.dir), firstHit.sh->brdf.s);
+    }
   } else {
     rgbs[DLs->size() + PLs->size() + 1] = black;
   }
@@ -368,7 +374,7 @@ Shape::Shape(unsigned int n) {
 
 /** Sphere constructor */
 Sphere::Sphere(){}
-Sphere::Sphere(float x, float y, float z, float rad, BRDF b, unsigned int n):
+Sphere::Sphere(float x, float y, float z, float rad, BRDF b, unsigned int n, mat4 transformMatrix):
   center(3, 0.0f),
   num(n)
 {
@@ -377,6 +383,8 @@ Sphere::Sphere(float x, float y, float z, float rad, BRDF b, unsigned int n):
   center.at(2) = z;
   radius = rad;
   brdf = b;
+  transMat = transformMatrix;//matrix used to keep track of transformation
+  inverse = transMat.inverse();//getting the inverse of the transformation inverse (used for intersections)
 }
 
 /** Quadratic solver, sets x0 and x1 to to the roots of quadratic function, given
@@ -410,20 +418,37 @@ int quadratic(const float &a, const float &b, const float &c, float &x0, float &
 /** Given an incoming ray, returns NULL if no intersection, otherwise returns
  *  resultant intersection */
 Intersection Sphere::intersect(Ray &ray, RayTracer &rt) {
+
+
+  //////stuff needed for transformation:
+  
+  vec3 rayStartPos = convertToVec3(ray.startPos);
+  vec3 rayDir = convertToVec3(ray.dir);
+
+  //getting the transformed ray position and transformed direction
+  vec3 transRayPos = vec3(inverse * vec4(rayStartPos, 1));
+  vec3 transRayDir = vec3(inverse * vec4(rayDir, 0), 3).normalize();
+
+  //The ray with the transformation applied:
+  Ray transRay = Ray(convertToVectorFloat(transRayPos), convertToVectorFloat(transRayDir));
+
+
+  //////////////////original below:
+
   // Roots of intersection
   float t0 = 0.0f;
   float t1 = 0.0f;
   // emc: e minus c (ray's startPos - sphere center)
   std::vector<float> emc(3, 0.0f);
-  emc.at(0) = ray.startPos.at(0) - center.at(0);
-  emc.at(1) = ray.startPos.at(1) - center.at(1);
-  emc.at(2) = ray.startPos.at(2) - center.at(2);
+  emc.at(0) = transRay.startPos.at(0) - center.at(0);
+  emc.at(1) = transRay.startPos.at(1) - center.at(1);
+  emc.at(2) = transRay.startPos.at(2) - center.at(2);
   // a: d dot d     (ray's dir dotproduct itself) EQUALS 1 for unit d
-  float a = (ray.dir.at(0)*ray.dir.at(0) + ray.dir.at(1)*ray.dir.at(1) + 
-	     ray.dir.at(2)*ray.dir.at(2));
+  float a = (transRay.dir.at(0)*transRay.dir.at(0) + transRay.dir.at(1)*transRay.dir.at(1) + 
+	     transRay.dir.at(2)*transRay.dir.at(2));
   // b: 2* (d dot ((e-c)dot(e-c)))    (2 times (d dot (emc dotproduct itself)))
-  float b = 2 * (ray.dir.at(0)*emc.at(0) + ray.dir.at(1)*emc.at(1) +
-		 ray.dir.at(2)*emc.at(2));
+  float b = 2 * (transRay.dir.at(0)*emc.at(0) + transRay.dir.at(1)*emc.at(1) +
+		 transRay.dir.at(2)*emc.at(2));
   // c: emc dot emc - r^2        (emc dot emc - sphere's radius^2)
   float c = (emc.at(0)*emc.at(0) + emc.at(1)*emc.at(1) + emc.at(2)*emc.at(2) -
 	     radius*radius);
@@ -434,18 +459,93 @@ Intersection Sphere::intersect(Ray &ray, RayTracer &rt) {
     inters.isExists = 0;
     return inters;
   }
+
+
   inters.t = t0;
   inters.sh = rt.shapes->at(this->num);
-  inters.pos.at(0) = ray.startPos.at(0) + t0*ray.dir.at(0);
-  inters.pos.at(1) = ray.startPos.at(1) + t0*ray.dir.at(1);
-  inters.pos.at(2) = ray.startPos.at(2) + t0*ray.dir.at(2);
-  inters.normal.at(0) = inters.pos.at(0) - center.at(0);
-  inters.normal.at(1) = inters.pos.at(1) - center.at(1);
-  inters.normal.at(2) = inters.pos.at(2) - center.at(2);
-  normalizationizerificationator(inters.normal);
+  /////////// more stuff for transformation:
+  vec3 transfRayStartPos = convertToVec3(transRay.startPos);
+  vec3 transfRayDir = convertToVec3(transRay.dir);
+  vec3 intersPos = transfRayStartPos + t0 * transfRayDir;
+  intersPos = vec3(transMat * vec4(intersPos));
+
+  //setting inters.pos to the intersPos we found above, after the transformation:
+  inters.pos = convertToVectorFloat(intersPos);
+
+  //Note: to calculate normal of an ellipsoid, transform normal by m.inverse.transpose (Shirley)
+  //vec3 vec3Center = convertToVec3(center); //deleted
+  vec3 normal = vec3(inverse * intersPos) - convertToVec3(center);
+  // note, this is an algebra3 constructor: vec3(const vec4& v, int dropAxis); <- casts vec4 to vec3
+  normal = vec3(inverse.transpose() * vec4(normal, 0), 3);
+  normal.normalize();
+
+  //setting inters.normal to the normal calculated above:
+  inters.normal = convertToVectorFloat(normal);
+
   // By this point, intersection is then valid.
   return inters;
+
+  //originally:
+  // inters.pos.at(0) = transRay.startPos.at(0) + t0*transRay.dir.at(0);
+  // inters.pos.at(1) = transRay.startPos.at(1) + t0*transRay.dir.at(1);
+  // inters.pos.at(2) = transRay.startPos.at(2) + t0*transRay.dir.at(2);
+  // inters.normal.at(0) = inters.pos.at(0) - center.at(0);
+  // inters.normal.at(1) = inters.pos.at(1) - center.at(1);
+  // inters.normal.at(2) = inters.pos.at(2) - center.at(2);
+  // normalizationizerificationator(inters.normal);
+  // return inters;
+
+
+
+  //kevin's original code:
+  // // Roots of intersection
+  // float t0 = 0.0f;
+  // float t1 = 0.0f;
+  // // emc: e minus c (ray's startPos - sphere center)
+  // std::vector<float> emc(3, 0.0f);
+  // emc.at(0) = ray.startPos.at(0) - center.at(0);
+  // emc.at(1) = ray.startPos.at(1) - center.at(1);
+  // emc.at(2) = ray.startPos.at(2) - center.at(2);
+  // // a: d dot d     (ray's dir dotproduct itself) EQUALS 1 for unit d
+  // float a = (ray.dir.at(0)*ray.dir.at(0) + ray.dir.at(1)*ray.dir.at(1) + 
+  //      ray.dir.at(2)*ray.dir.at(2));
+  // // b: 2* (d dot ((e-c)dot(e-c)))    (2 times (d dot (emc dotproduct itself)))
+  // float b = 2 * (ray.dir.at(0)*emc.at(0) + ray.dir.at(1)*emc.at(1) +
+  //    ray.dir.at(2)*emc.at(2));
+  // // c: emc dot emc - r^2        (emc dot emc - sphere's radius^2)
+  // float c = (emc.at(0)*emc.at(0) + emc.at(1)*emc.at(1) + emc.at(2)*emc.at(2) -
+  //      radius*radius);
+  // // Initialize intersection, currently isExists == 1
+  // Intersection inters;
+  // if (!quadratic(a, b, c, t0, t1)) {
+  //   // SET isExists = 0
+  //   inters.isExists = 0;
+  //   return inters;
+  // }
+  // inters.t = t0;
+  // inters.sh = rt.shapes->at(this->num);
+  // inters.pos.at(0) = ray.startPos.at(0) + t0*ray.dir.at(0);
+  // inters.pos.at(1) = ray.startPos.at(1) + t0*ray.dir.at(1);
+  // inters.pos.at(2) = ray.startPos.at(2) + t0*ray.dir.at(2);
+  // inters.normal.at(0) = inters.pos.at(0) - center.at(0);
+  // inters.normal.at(1) = inters.pos.at(1) - center.at(1);
+  // inters.normal.at(2) = inters.pos.at(2) - center.at(2);
+  // normalizationizerificationator(inters.normal);
+  // // By this point, intersection is then valid.
+  // return inters;
 }
+
+vec3 convertToVec3(std::vector<float> v) {
+  return vec3(v.at(0), v.at(1), v.at(2));
+}
+
+std::vector<float> convertToVectorFloat(vec3 v) {
+  std::vector<float> result(3, 0.0f);
+  result.at(0) = v[0];
+  result.at(1) = v[1];
+  result.at(2) = v[2];
+  return result;
+} 
 
 /** Triangle constructor */
 Triangle::Triangle(){}

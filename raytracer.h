@@ -1,6 +1,7 @@
 #ifndef RAYTRACER_H
 #define RAYTRACER_H
 
+#include "algebra3.h" //transf
 #include "camera.h"
 
 #include <vector>
@@ -88,7 +89,7 @@ class Sphere {
  public:
   Sphere();
   /* Sphere constructor */
-  Sphere(float x, float y, float z, float rad, BRDF b, unsigned int n);
+  Sphere(float x, float y, float z, float rad, BRDF b, unsigned int n, mat4 transformMatrix);
   /* Given an incoming ray, isExists == 0 if no intersection, otherwise returns
    * resultant intersection */
   Intersection intersect(Ray &ray, RayTracer &rt);
@@ -96,6 +97,10 @@ class Sphere {
   BRDF brdf;
   float radius;
   unsigned int num;
+
+  mat4 transMat;//transf
+  mat4 inverse;//transf
+
 };
 
 /** Triangle class */
@@ -177,5 +182,11 @@ std::vector<float> specularify(std::vector<float> scolor, std::vector<float> ico
  * PARAM rgbs : array of the RGBs
  * PARAM num : length of rgbs array (# of RGBs to be combined) */
 std::vector<float> shAverager(std::vector<float> rgbs[], int num);
+
+//takes in a vector<float> v and converts it to a vec3 object
+vec3 convertToVec3(std::vector<float> v);
+
+//takes in a vec3 object and converts it to a vector<float>
+std::vector<float> convertToVectorFloat(vec3 v);
 
 #endif

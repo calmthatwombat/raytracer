@@ -77,6 +77,17 @@ int main(int argc, char *argv[]) {
   std::vector<PointLight> PLs1;
   std::vector<DirectionalLight *> DLs0;
   std::vector<PointLight *> PLs0;
+
+  //stack of 4x4 matrix transformations
+  std::stack<mat4> transforms; //transf
+  //push the idendity 4x4 matrix
+  transforms.push(identity3D()); //transf
+
+
+
+
+
+
   
   std::string fname = "output.bmp";
 
@@ -130,29 +141,29 @@ int main(int argc, char *argv[]) {
       //  speciﬁes the camera in the standard way, as in homework 2.
       else if (!splitline[0].compare("camera")) {
         c.lookFrom.at(0) = atof(splitline[1].c_str());
-	c.lookFrom.at(1) = atof(splitline[2].c_str());
-	c.lookFrom.at(2) = atof(splitline[3].c_str());
-	c.lookAt.at(0) = atof(splitline[4].c_str());
-	c.lookAt.at(1) = atof(splitline[5].c_str());
-	c.lookAt.at(2) = atof(splitline[6].c_str());
-        c.upDir.at(0) = atof(splitline[7].c_str());
-	c.upDir.at(1) = atof(splitline[8].c_str());
-	c.upDir.at(2) = atof(splitline[9].c_str());
-	c.fov = atof(splitline[10].c_str());
+      	c.lookFrom.at(1) = atof(splitline[2].c_str());
+      	c.lookFrom.at(2) = atof(splitline[3].c_str());
+      	c.lookAt.at(0) = atof(splitline[4].c_str());
+      	c.lookAt.at(1) = atof(splitline[5].c_str());
+      	c.lookAt.at(2) = atof(splitline[6].c_str());
+              c.upDir.at(0) = atof(splitline[7].c_str());
+      	c.upDir.at(1) = atof(splitline[8].c_str());
+      	c.upDir.at(2) = atof(splitline[9].c_str());
+      	c.fov = atof(splitline[10].c_str());
       }
 
       // sphere x y z radius
       //  Deﬁnes a sphere with a given position and radius.
       else if(!splitline[0].compare("sphere")) {
-	Shape shape(shapeNum);
-	Sphere s(atof(splitline[1].c_str()),
-		 atof(splitline[2].c_str()),
-		 atof(splitline[3].c_str()),
-		 atof(splitline[4].c_str()),
-		 brdf, shapeNum++);
-	spheres1.push_back(s);
-	shape.brdf = brdf;
-	shapes1.push_back(shape);
+      	Shape shape(shapeNum);
+      	Sphere s(atof(splitline[1].c_str()),
+            		 atof(splitline[2].c_str()),
+            		 atof(splitline[3].c_str()),
+            		 atof(splitline[4].c_str()),
+            		 brdf, shapeNum++, transforms.top());
+      	spheres1.push_back(s);
+      	shape.brdf = brdf;
+      	shapes1.push_back(shape);
         //   STORE CURRENT TOP OF MATRIX STACK
       }
 
@@ -168,11 +179,11 @@ int main(int argc, char *argv[]) {
       //  Deﬁnes a vertex at the given location.
       //  The vertex is put into a pile, starting to be numbered at 0.
       else if(!splitline[0].compare("vertex")) {
-	std::vector<float> p(3, 0.0f);
-	p.at(0) = atof(splitline[1].c_str());
-	p.at(1) = atof(splitline[2].c_str());
-	p.at(2) = atof(splitline[3].c_str());
-	vertices.push_back(p);
+      	std::vector<float> p(3, 0.0f);
+      	p.at(0) = atof(splitline[1].c_str());
+      	p.at(1) = atof(splitline[2].c_str());
+      	p.at(2) = atof(splitline[3].c_str());
+      	vertices.push_back(p);
 	
         // Create a new vertex with these 3 values, store in some array
       }
@@ -181,16 +192,16 @@ int main(int argc, char *argv[]) {
       //  The vertex and vertexnormal set of vertices are completely independent
       //  (as are maxverts and maxvertnorms).
       else if(!splitline[0].compare("vertexnormal")) {
-	std::vector<float> p(6, 0.0f);
-	std::vector<float> n(6, 0.0f);
-	p.at(0) = atof(splitline[1].c_str());
-	p.at(1) = atof(splitline[2].c_str());
-	p.at(2) = atof(splitline[3].c_str());
-	n.at(3) = atof(splitline[4].c_str());
-	n.at(4) = atof(splitline[5].c_str());
-	n.at(5) = atof(splitline[6].c_str());
-	trinormvertices.push_back(p);
-	trinormnormals.push_back(n);
+      	std::vector<float> p(6, 0.0f);
+      	std::vector<float> n(6, 0.0f);
+      	p.at(0) = atof(splitline[1].c_str());
+      	p.at(1) = atof(splitline[2].c_str());
+      	p.at(2) = atof(splitline[3].c_str());
+      	n.at(3) = atof(splitline[4].c_str());
+      	n.at(4) = atof(splitline[5].c_str());
+      	n.at(5) = atof(splitline[6].c_str());
+      	trinormvertices.push_back(p);
+      	trinormnormals.push_back(n);
       }
       //tri v1 v2 v3
       //  Create a triangle out of the vertices involved (which have previously 
@@ -198,14 +209,62 @@ int main(int argc, char *argv[]) {
       //  be speciﬁed in counter-clockwise order. Your code should internally 
       //  compute a face normal for this triangle.
       else if(!splitline[0].compare("tri")) {
-	Shape shape(shapeNum);
-	std::vector<float> *v1 = &vertices.at(atoi(splitline[1].c_str()));
-	std::vector<float> *v2 = &vertices.at(atoi(splitline[2].c_str()));
-	std::vector<float> *v3 = &vertices.at(atoi(splitline[3].c_str()));
-	Triangle t(v1, v2, v3, brdf, shapeNum++);
-	triangles1.push_back(t);
-	shape.brdf = brdf;
-	shapes1.push_back(shape);
+      	Shape shape(shapeNum);
+      	// std::vector<float> *v1 = &vertices.at(atoi(splitline[1].c_str()));
+      	// std::vector<float> *v2 = &vertices.at(atoi(splitline[2].c_str()));
+      	// std::vector<float> *v3 = &vertices.at(atoi(splitline[3].c_str()));
+
+        //original code:
+        //std::vector<float> *v1 = &vertices.at(atoi(splitline[1].c_str()));
+        //std::vector<float> *v2 = &vertices.at(atoi(splitline[2].c_str()));
+        //std::vector<float> *v3 = &vertices.at(atoi(splitline[3].c_str()));
+
+        //casting each of the three 3D vertice vectors into 4D vectors:
+        std::vector<float> *v1 = &vertices.at(atoi(splitline[1].c_str()));
+        std::vector<float> *v2 = &vertices.at(atoi(splitline[2].c_str()));
+        std::vector<float> *v3 = &vertices.at(atoi(splitline[3].c_str()));
+
+        //new component is set by default to 1.0
+        //e.g., casted 4D vector of v1 looks like: v1(v1.x, v1.y, v1.z, 1.0)
+        //vec4 v1_4D = vec4((*v1)[0], *&(v1->at(1)), v1->at(2));
+        vec3 v1_3d = vec3((float) v1->at(0), (float) v1->at(1), (float) v1->at(2));
+        vec3 v2_3d = vec3((float) v2->at(0), (float) v2->at(1), (float) v2->at(2));
+        vec3 v3_3d = vec3((float) v3->at(0), (float) v3->at(1), (float) v3->at(2));
+
+        vec4 v1_4D = vec4(v1_3d);
+        vec4 v2_4D = vec4(v2_3d);
+        vec4 v3_4D = vec4(v3_3d);
+
+        //transforming the vertices by multiplying the transformation
+        //matrix by the 4D vertex vector:
+        //algebra3 notes about casting down from 4D to 3D: When casting to a lower dimension,
+        //the vector is homogenized in the lower dimension. E.g., if a 4d {X,Y,Z,W}
+        //is cast to 3d, the resulting vector is {X/W, Y/W, Z/W}.
+        vec3 v1_3D = vec3(transforms.top() * v1_4D);
+        vec3 v2_3D = vec3(transforms.top() * v2_4D);
+        vec3 v3_3D = vec3(transforms.top() * v3_4D);
+
+        //converting each vec3 into a vector<float>:
+        v1->at(0) = v1_3D[0];
+        v1->at(1) = v1_3D[1];
+        v1->at(2) = v1_3D[2];
+
+        v2->at(0) = v2_3D[0];
+        v2->at(1) = v2_3D[1];
+        v2->at(2) = v2_3D[2];
+
+        v3->at(0) = v3_3D[0];
+        v3->at(1) = v3_3D[1];
+        v3->at(2) = v3_3D[2];
+
+        
+        //triangles0.push_back(new Triangle(v1, v2, v3, brdf));//this is what I had before
+
+        //Finally, pushing the transformed vertices into the triangles container:
+      	Triangle t(v1, v2, v3, brdf, shapeNum++);
+      	triangles1.push_back(t);
+      	shape.brdf = brdf;
+      	shapes1.push_back(shape);
         //   STORE CURRENT TOP OF MATRIX
       }
       //trinormal v1 v2 v3
@@ -214,51 +273,86 @@ int main(int argc, char *argv[]) {
       //  and when doing shading, you should interpolate the normals 
       //  for intermediate points on the triangle.
       else if(!splitline[0].compare("trinormal")) {
-	Shape shape(shapeNum);
-	std::vector<float> *v1 = &trinormvertices.at(atoi(splitline[1].c_str()));
-	std::vector<float> *v2 = &trinormvertices.at(atoi(splitline[2].c_str()));
-	std::vector<float> *v3 = &trinormvertices.at(atoi(splitline[3].c_str()));
-	std::vector<float> *n1 = &trinormnormals.at(atoi(splitline[1].c_str()));
-	std::vector<float> *n2 = &trinormnormals.at(atoi(splitline[2].c_str()));
-	std::vector<float> *n3 = &trinormnormals.at(atoi(splitline[3].c_str()));
-	TriNormal t(v1, v2, v3, n1, n2, n3, brdf, shapeNum++);
-	trinormals1.push_back(t);
-	shape.brdf = brdf;
-	shapes1.push_back(shape);
+      	Shape shape(shapeNum);
+      	std::vector<float> *v1 = &trinormvertices.at(atoi(splitline[1].c_str()));
+      	std::vector<float> *v2 = &trinormvertices.at(atoi(splitline[2].c_str()));
+      	std::vector<float> *v3 = &trinormvertices.at(atoi(splitline[3].c_str()));
+      	std::vector<float> *n1 = &trinormnormals.at(atoi(splitline[1].c_str()));
+      	std::vector<float> *n2 = &trinormnormals.at(atoi(splitline[2].c_str()));
+      	std::vector<float> *n3 = &trinormnormals.at(atoi(splitline[3].c_str()));
+      	TriNormal t(v1, v2, v3, n1, n2, n3, brdf, shapeNum++);
+      	trinormals1.push_back(t);
+      	shape.brdf = brdf;
+      	shapes1.push_back(shape);
         //   STORE CURRENT TOP OF MATRIX STACK
       }
 
       //Translate x y z
       //  A translation 3-vector
       else if(!splitline[0].compare("translate")) {
-        // x: atof(splitline[1].c_str())
-        // y: atof(splitline[2].c_str())
-        // z: atof(splitline[3].c_str())
-        // Update top of matrix stack
+        float x, y, z;
+        x = atof(splitline[1].c_str());
+        y = atof(splitline[2].c_str());
+        z = atof(splitline[3].c_str());
+
+        //creating translation vector, v:
+        vec3 v = vec3(x, y, z);
+
+        //getting the top (i.e. latest) matrix on the stack, and doing a translation3D transform:
+        mat4 vTranslated = translation3D(v);
+        mat4 transMat = transforms.top() * vTranslated;
+
+        //updating the top of the matrix stack:
+        transforms.pop();
+        transforms.push(transMat);
       }
       //rotate x y z angle
       //  Rotate by angle (in degrees) about the given axis as in OpenGL.
       else if(!splitline[0].compare("rotate")) {
-        // x: atof(splitline[1].c_str())
-        // y: atof(splitline[2].c_str())
-        // z: atof(splitline[3].c_str())
-        // angle: atof(splitline[4].c_str())
-        // Update top of matrix stack
+        float x, y, z, angle;
+        x = atof(splitline[1].c_str());
+        y = atof(splitline[2].c_str());
+        z = atof(splitline[3].c_str());
+
+        //angle of rotation IN DEGREES
+        angle = atof(splitline[4].c_str());
+
+        //creating the axis of rotation vector, axis:
+        vec3 axis = vec3(x, y, z);
+
+        //getting the top (i.e.latest) matrix on the stack, and doing a rotation3D transform using DEGREES:
+        mat4 rotatedV = rotation3D(axis, angle);
+        mat4 rotMat = transforms.top() * rotatedV;
+
+        //updating the top of the matrix stack:
+        transforms.pop();
+        transforms.push(rotMat);
       }
       //scale x y z
       //  Scale by the corresponding amount in each axis (a non-uniform scaling).
       else if(!splitline[0].compare("scale")) {
-        // x: atof(splitline[1].c_str())
-        // y: atof(splitline[2].c_str())
-        // z: atof(splitline[3].c_str())
-        // Update top of matrix stack
+        float x, y, z;
+        x = atof(splitline[1].c_str());
+        y = atof(splitline[2].c_str());
+        z = atof(splitline[3].c_str());
+
+        //creating the scaling vector, scaleV
+        vec3 scaleV = vec3(x, y, z);
+
+        //getting the top (i.e.latest) matrix on the stack, and doing a scaling3D transform
+        mat4 scaledV = scaling3D(scaleV);
+        mat4 scaleMat = transforms.top() * scaledV;
+
+        //updating the top of the matrix stack:
+        transforms.pop();
+        transforms.push(scaleMat);
       }
       //pushTransform
       //  Push the current modeling transform on the stack as in OpenGL. 
       //  You might want to do pushTransform immediately after setting 
       //   the camera to preserve the “identity” transformation.
       else if(!splitline[0].compare("pushTransform")) {
-        //mst.push();
+        transforms.push(transforms.top());
       }
       //popTransform
       //  Pop the current transform from the stack as in OpenGL. 
@@ -267,28 +361,50 @@ int main(int argc, char *argv[]) {
       //  (assuming the initial camera transformation is on the stack as 
       //  discussed above).
       else if(!splitline[0].compare("popTransform")) {
-        //mst.pop();
+        if (transforms.size() == 1) {
+          std::cout << "No more matrices." << std::endl;
+        } else {
+          transforms.pop();
+        }
       }
 
       //directional x y z r g b
       //  The direction to the light source, and the color, as in OpenGL.
       else if(!splitline[0].compare("directional")) {
-	DLs1.push_back(*new DirectionalLight (atof(splitline[1].c_str()),
-					     atof(splitline[2].c_str()),
-					     atof(splitline[3].c_str()),
-					     atof(splitline[4].c_str()),
-					     atof(splitline[5].c_str()),
-					     atof(splitline[6].c_str())));
+        //original DO NOT DELETE
+	      // DLs1.push_back(*new DirectionalLight (atof(splitline[1].c_str()),
+					  //    atof(splitline[2].c_str()),
+					  //    atof(splitline[3].c_str()),
+					  //    atof(splitline[4].c_str()),
+					  //    atof(splitline[5].c_str()),
+					  //    atof(splitline[6].c_str())));
+
+        vec3 dir = vec3(atof(splitline[1].c_str()), atof(splitline[2].c_str()), atof(splitline[3].c_str()));
+        vec3 rgb = vec3(atof(splitline[4].c_str()), atof(splitline[5].c_str()), atof(splitline[6].c_str()));
+
+        //lizzie comment: vec3(const vec4& v, int dropAxis); <- casts v4 to v3
+        dir = vec3(transforms.top() * vec4(dir, 0), 3);
+
+        DLs1.push_back(*new DirectionalLight(dir[0], dir[1], dir[2], rgb[0], rgb[1], rgb[2]));
+
       }
       //point x y z r g b
       //  The location of a point source and the color, as in OpenGL.
       else if(!splitline[0].compare("point")) {
-	PLs1.push_back(*new PointLight (atof(splitline[1].c_str()),
-				       atof(splitline[2].c_str()),
-				       atof(splitline[3].c_str()),
-				       atof(splitline[4].c_str()),
-				       atof(splitline[5].c_str()),
-				       atof(splitline[6].c_str()), a1, a2, a3));
+        //original code DO NOT DELETE
+	     // PLs1.push_back(*new PointLight (atof(splitline[1].c_str()),
+				  //      atof(splitline[2].c_str()),
+				  //      atof(splitline[3].c_str()),
+				  //      atof(splitline[4].c_str()),
+				  //      atof(splitline[5].c_str()),
+				  //      atof(splitline[6].c_str()), a1, a2, a3));
+        vec3 loc = vec3(atof(splitline[1].c_str()), atof(splitline[2].c_str()), atof(splitline[3].c_str()));
+        vec3 rgb = vec3(atof(splitline[4].c_str()), atof(splitline[5].c_str()), atof(splitline[6].c_str()));
+
+        //lizzie comment: vec3(const vec4& v, int dropAxis); <- casts v4 to v3
+        loc = vec3(transforms.top() * vec4(loc, 1));
+
+        PLs1.push_back(*new PointLight(loc[0], loc[1], loc[2], rgb[0], rgb[1], rgb[2], a1, a2, a3));
       }
       //attenuation const linear quadratic
       //  Sets the constant, linear and quadratic attenuations 
